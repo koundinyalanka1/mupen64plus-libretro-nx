@@ -47,7 +47,9 @@
 extern retro_audio_sample_batch_t audio_batch_cb;
 /* Frameskip valve state, owned by libretro.c. */
 extern bool libretro_audio_enabled;
-extern unsigned libretro_audio_frames_pushed;
+/* Latched here the first time the AI actually produces samples, so retro_run
+ * can stop emitting boot-time silence. One-way; never cleared from this side. */
+extern volatile bool libretro_audio_stream_active;
 
 static unsigned MAX_AUDIO_FRAMES = 2048;
 
@@ -353,7 +355,8 @@ static void aiLenChanged(void* user_data, const void* buffer, size_t size)
       }
 
       out = audio_out_buffer_s16;
-      libretro_audio_frames_pushed += output_frames;
+      if (output_frames != 0)
+         libretro_audio_stream_active = true;
       while (output_frames)
       {
          size_t ret;
@@ -394,7 +397,8 @@ audio_batch:
 
    out                    = audio_out_buffer_s16;
 
-   libretro_audio_frames_pushed += data.output_frames;
+   if (data.output_frames != 0)
+      libretro_audio_stream_active = true;
    while (data.output_frames)
    {
       size_t ret;

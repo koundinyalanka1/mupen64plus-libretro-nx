@@ -164,11 +164,16 @@ static unsigned frame_skip_mode = LIBRETRO_SKIP_READBACK;
 /* Honoured by the libretro audio backend before it pushes a batch. */
 bool libretro_audio_enabled = true;
 
-/* Frames handed to audio_batch_cb during the current retro_run. */
-unsigned libretro_audio_frames_pushed = 0;
-/* Cleared on load; set once the AI actually starts streaming at the declared
- * rate, after which no padding is emitted. */
-static bool audio_stream_started = false;
+/* Set by the libretro audio backend the first time the AI delivers real
+ * samples, and never cleared until the next ROM load.
+ *
+ * This must not be a per-retro_run sample count: with the threaded renderer the
+ * emulation runs on its own thread and is not synchronised with retro_run, so
+ * "frames delivered during this call" is meaningless -- reading it and topping
+ * up to a frame's quota delivers the padding *in addition to* the worker's real
+ * audio, at roughly 1.4x the declared rate. A one-way flag has no such race:
+ * the worst case is a single extra frame of padding as the stream comes up. */
+volatile bool libretro_audio_stream_active = false;
 
 #define LIBRETRO_AUDIO_DECLARED_RATE 44100.0
 
@@ -1999,7 +2004,7 @@ bool retro_load_game(const struct retro_game_info *game)
     libretro_set_presented_frame_skip(0);
 
     /* Re-arm the boot-time audio padding for the newly loaded ROM. */
-    audio_stream_started = false;
+    libretro_audio_stream_active = false;
 
     // Workaround for broken subsystem on static platforms
     // Note: game->path can be NULL if loading from a archive
@@ -2187,8 +2192,6 @@ void retro_run (void)
        }
     }
 
-    libretro_audio_frames_pushed = 0;
-
     libretro_set_frame_skip(libretro_skip_frame, frame_skip_mode);
 
     if(current_rdp_type == RDP_PLUGIN_GLIDEN64)
@@ -2213,22 +2216,20 @@ void retro_run (void)
     }
     
     /* The AI does not stream for the first frames after boot, so the core
-     * under-delivers audio and a frontend that measures the output rate at
-     * startup reads it far too low. Pad with silence at the declared rate
-     * until the game's own audio actually starts arriving. */
-    if (!audio_stream_started && audio_batch_cb && libretro_audio_enabled)
+     * delivers no audio at all and a frontend that measures the output rate at
+     * startup reads it far too low. Emit a frame's worth of silence at the
+     * declared rate until the game's own audio starts, then never again. */
+    if (!libretro_audio_stream_active && audio_batch_cb && libretro_audio_enabled)
     {
        /* 60 for NTSC/MPAL, 50 for PAL: 735 and 882 frames respectively. */
        const unsigned fps = vi_expected_refresh_rate_from_tv_standard(ROM_PARAMS.systemtype);
        const unsigned expected = (fps > 0)
           ? (unsigned)(LIBRETRO_AUDIO_DECLARED_RATE / (double)fps) : 0;
 
-       if (expected != 0 && libretro_audio_frames_pushed >= expected)
-          audio_stream_started = true;
-       else if (expected > libretro_audio_frames_pushed)
+       if (expected != 0)
        {
           static const int16_t silence[256 * 2] = {0};
-          unsigned remaining = expected - libretro_audio_frames_pushed;
+          unsigned remaining = expected;
 
           while (remaining)
           {
