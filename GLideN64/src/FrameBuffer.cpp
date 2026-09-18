@@ -1433,12 +1433,16 @@ void FrameBufferList::OverscanBuffer::setInputBuffer(const FrameBuffer *  _pBuff
 
 void FrameBufferList::OverscanBuffer::activate()
 {
-	if (!m_enabled) {
-		gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
-		return;
-	}
+	const ObjectHandle target = m_enabled ? m_FBO : ObjectHandle::defaultFramebuffer;
+	gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, target);
 
-	gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, m_FBO);
+	/* What follows is the VI composition: a full-screen textured blit with no
+	 * depth testing. Whatever depth and stencil this target carries is dead,
+	 * so say so -- a tile-based renderer can then skip both loading those
+	 * tiles at the start of the pass and resolving them to memory at the end.
+	 * Skipped when the composition is asked to write depth itself. */
+	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer == 0)
+		gfxContext.invalidateDepthStencil(target);
 }
 
 void FrameBufferList::OverscanBuffer::draw(u32 _fullHeight, bool _PAL)
@@ -1450,6 +1454,9 @@ void FrameBufferList::OverscanBuffer::draw(u32 _fullHeight, bool _PAL)
 	GraphicsDrawer & drawer = wnd.getDrawer();
 
 	gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
+	/* Same reasoning as in activate(): this pass only writes colour. */
+	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer == 0)
+		gfxContext.invalidateDepthStencil(ObjectHandle::defaultFramebuffer);
 #if defined(OS_WINDOWS)
 	gfxContext.clearDepthBuffer();
 #endif

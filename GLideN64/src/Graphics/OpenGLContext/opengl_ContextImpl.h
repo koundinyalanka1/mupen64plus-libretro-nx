@@ -51,6 +51,7 @@ namespace opengl {
 		void clearColorBuffer(f32 _red, f32 _green, f32 _blue, f32 _alpha) override;
 
 		void clearDepthBuffer() override;
+		void invalidateDepthStencil(graphics::ObjectHandle _drawBuffer) override;
 
 		void setPolygonOffset(f32 _factor, f32 _units) override;
 

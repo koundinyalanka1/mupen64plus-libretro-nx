@@ -123,6 +123,11 @@ void Context::clearDepthBuffer()
 	m_impl->clearDepthBuffer();
 }
 
+void Context::invalidateDepthStencil(ObjectHandle _drawBuffer)
+{
+	m_impl->invalidateDepthStencil(_drawBuffer);
+}
+
 void Context::setPolygonOffset(f32 _factor, f32 _units)
 {
 	m_impl->setPolygonOffset(_factor, _units);

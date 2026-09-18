@@ -197,7 +197,12 @@ char* retro_transferpak_ram_path = NULL;
 uint32_t CoreOptionCategoriesSupported = 0;
 uint32_t CoreOptionUpdateDisplayCbSupported = 0;
 uint32_t bilinearMode = 0;
-uint32_t EnableHybridFilter = 0;
+/* These initial values must match the defaults declared in
+ * libretro_core_options.h. update_variables() only assigns when
+ * GET_VARIABLE succeeds, so a frontend that does not supply a key leaves
+ * the value here in force -- previously the inverse of the advertised
+ * default. */
+uint32_t EnableHybridFilter = 1;
 uint32_t EnableDitheringPattern = 0;
 uint32_t RDRAMImageDitheringMode = 0;
 uint32_t EnableDitheringQuantization = 0;
@@ -220,17 +225,17 @@ uint32_t txHiresFullAlphaChannel = 0;
 uint32_t txFilterIgnoreBG = 0;
 uint32_t EnableFXAA = 0;
 uint32_t MultiSampling = 0;
-uint32_t EnableFragmentDepthWrite = 0;
-uint32_t EnableShadersStorage = 0;
-uint32_t EnableTextureCache = 0;
+uint32_t EnableFragmentDepthWrite = 1;
+uint32_t EnableShadersStorage = 1;
+uint32_t EnableTextureCache = 1;
 uint32_t EnableFBEmulation = 0;
 uint32_t EnableFrameDuping = 0;
-uint32_t EnableLODEmulation = 0;
+uint32_t EnableLODEmulation = 1;
 uint32_t BackgroundMode = 0; // 0 is bgOnePiece
 uint32_t EnableEnhancedTextureStorage = 0;
 uint32_t EnableHiResAltCRC = 0;
 uint32_t EnableEnhancedHighResStorage = 0;
-uint32_t EnableTxCacheCompression = 0;
+uint32_t EnableTxCacheCompression = 1;
 uint32_t EnableNativeResFactor = 0;
 uint32_t EnableN64DepthCompare = 0;
 uint32_t EnableThreadedRenderer = 0;

@@ -542,7 +542,12 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "True"
 #endif
     },
-#if !defined(VC) && !defined(HAVE_OPENGLES)
+/* GLES3 has glGetProgramBinary/glProgramBinary in core, and GLES2 reaches it
+ * through GL_OES_get_program_binary; GLInfo::init() probes both, plus
+ * GL_NUM_PROGRAM_BINARY_FORMATS, before enabling anything. Excluding all of
+ * GLES here left the option unexposed on every Android build, so the core
+ * fell back to its C initial value and recompiled every shader each run. */
+#if !defined(VC)
     {
         CORE_NAME "-EnableN64DepthCompare",
         "N64 Depth Compare",

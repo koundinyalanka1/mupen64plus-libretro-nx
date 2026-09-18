@@ -200,6 +200,27 @@ void ContextImpl::clearColorBuffer(f32 _red, f32 _green, f32 _blue, f32 _alpha)
 	enableScissor->enable(true);
 }
 
+void ContextImpl::invalidateDepthStencil(graphics::ObjectHandle _drawBuffer)
+{
+	/* glInvalidateFramebuffer is core in ES 3.0 and GL 4.3; GLES2 has only the
+	 * EXT_discard_framebuffer variant, which is not wired up here. */
+	if (m_glInfo.isGLES2 || !(IS_GL_FUNCTION_VALID(InvalidateFramebuffer)))
+		return;
+
+	/* The default framebuffer names its buffers GL_DEPTH/GL_STENCIL; a real
+	 * FBO names them GL_DEPTH_ATTACHMENT/GL_STENCIL_ATTACHMENT. Passing the
+	 * wrong pair is GL_INVALID_ENUM. Note that under libretro the "default"
+	 * framebuffer is usually the frontend's own FBO, so this is decided from
+	 * the handle rather than assumed. */
+	const bool isWindowFramebuffer = (GLuint(_drawBuffer) == 0);
+	const GLenum attachments[2] = {
+		isWindowFramebuffer ? GLenum(GL_DEPTH)   : GLenum(GL_DEPTH_ATTACHMENT),
+		isWindowFramebuffer ? GLenum(GL_STENCIL) : GLenum(GL_STENCIL_ATTACHMENT)
+	};
+
+	glInvalidateFramebuffer(GL_DRAW_FRAMEBUFFER, 2, attachments);
+}
+
 void ContextImpl::clearDepthBuffer()
 {
 	CachedEnable * enableScissor = m_cachedFunctions->getCachedEnable(graphics::enable::SCISSOR_TEST);
