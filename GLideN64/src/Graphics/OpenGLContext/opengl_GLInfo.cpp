@@ -13,7 +13,96 @@
 #include <Graphics/OpenGLContext/GraphicBuffer/GraphicBufferWrapper.h>
 #endif
 
+#if defined(EGL) && defined(OS_ANDROID)
+#include <libretro_private.h>
+#endif
+
 using namespace opengl;
+
+#if defined(EGL) && defined(OS_ANDROID)
+/* Ask the driver whether an EGLImage-backed external texture can actually be
+ * used as a colour attachment, instead of inferring it from extension strings.
+ *
+ * This matters because FrameBuffer::_initColorFBTexture deliberately skips
+ * glTexImage2D for these textures -- their storage is supposed to arrive over
+ * the AHardwareBuffer -> EGLImage -> GL_TEXTURE_EXTERNAL_OES chain. On drivers
+ * where external textures are sampling-only that chain never yields a
+ * colour-renderable image, so every colour-buffer FBO is left permanently
+ * GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT and each frame's blit and readback is
+ * silently rejected. Probing here lets those drivers fall back to the ordinary
+ * TEXTURE_2D path, which does call init2DTexture and has real storage.
+ *
+ * Runs once, during ContextImpl::init(), before anything reads the flag. */
+static bool _probeEglImageColorAttachment()
+{
+	GraphicBufferWrapper buffer;
+	AHardwareBuffer_Desc desc{ 64, 64, 1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
+		AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN | AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE,
+		0, 0 };
+
+	if (!buffer.allocate(&desc)) {
+		if (log_cb)
+			log_cb(RETRO_LOG_WARN, "GLideN64: EGLImage probe: buffer allocation failed\n");
+		return false;
+	}
+
+	EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+	EGLint eglImgAttrs[] = { EGL_IMAGE_PRESERVED_KHR, EGL_TRUE, EGL_NONE, EGL_NONE };
+	EGLImageKHR image = eglCreateImageKHR(display, EGL_NO_CONTEXT,
+		EGL_NATIVE_BUFFER_ANDROID, buffer.getClientBuffer(), eglImgAttrs);
+
+	if (image == nullptr) {
+		if (log_cb)
+			log_cb(RETRO_LOG_WARN, "GLideN64: EGLImage probe: eglCreateImageKHR failed (EGL error 0x%x)\n",
+				(unsigned)eglGetError());
+		buffer.release();
+		return false;
+	}
+
+	GLint prevFramebuffer = 0;
+	GLuint texture = 0;
+	GLuint framebuffer = 0;
+	GLenum bindError = GL_NO_ERROR;
+	GLenum status = 0;
+	bool usable = false;
+
+	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFramebuffer);
+
+	while (glGetError() != GL_NO_ERROR);
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
+	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
+	bindError = glGetError();
+
+	if (bindError == GL_NO_ERROR) {
+		glGenFramebuffers(1, &framebuffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+			GL_TEXTURE_EXTERNAL_OES, texture, 0);
+		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		usable = (status == GL_FRAMEBUFFER_COMPLETE);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(prevFramebuffer));
+	if (framebuffer != 0)
+		glDeleteFramebuffers(1, &framebuffer);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+	glDeleteTextures(1, &texture);
+	eglDestroyImageKHR(display, image);
+	buffer.release();
+	while (glGetError() != GL_NO_ERROR);
+
+	if (log_cb)
+		log_cb(usable ? RETRO_LOG_INFO : RETRO_LOG_WARN,
+			"GLideN64: EGLImage colour-attachment probe: %s "
+			"(bind GL 0x%x, framebuffer status 0x%x)\n",
+			usable ? "usable" : "UNUSABLE, falling back to TEXTURE_2D",
+			(unsigned)bindError, (unsigned)status);
+
+	return usable;
+}
+#endif // EGL && OS_ANDROID
 
 static
 void APIENTRY on_gl_error(GLenum source,
@@ -228,6 +317,19 @@ void GLInfo::init() {
 	}
 
 	eglImageFramebuffer = eglImage && !isGLES2;
+
+#if defined(EGL) && defined(OS_ANDROID)
+	/* Extension strings only say the entry points exist, not that the result
+	 * is colour-renderable. Confirm it before committing to the path. */
+	if (eglImageFramebuffer)
+		eglImageFramebuffer = _probeEglImageColorAttachment();
+
+	/* The colour-buffer texture skips init2DTexture whenever EglImage is set,
+	 * so the two flags must not disagree: without a renderable EGLImage the
+	 * texture would be left with no storage at all. */
+	if (!eglImageFramebuffer)
+		eglImage = false;
+#endif
 
 #ifdef WEBOS
 	eglImage = false;
