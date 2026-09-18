@@ -2,6 +2,7 @@
 
 #include <GBI.h>
 #include <Graphics/Context.h>
+#include <Log.h>
 #include "opengl_ColorBufferReaderWithEGLImage.h"
 
 using namespace opengl;
@@ -11,7 +12,8 @@ ColorBufferReaderWithEGLImage::ColorBufferReaderWithEGLImage(CachedTexture *_pTe
 	: graphics::ColorBufferReader(_pTexture)
 	, m_bindTexture(_bindTexture)
 	, m_image(nullptr)
-	, m_usage(AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN|AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE)
+	, m_usage(AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN|AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE|
+		AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT)
 	, m_bufferLocked(false)
 {
 	_initBuffers();
@@ -32,7 +34,14 @@ void ColorBufferReaderWithEGLImage::_initBuffers()
 		1, AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM,
 		m_usage,
 		0,0};
-	m_hardwareBuffer.allocate(&bufferDesc);
+	if (!m_hardwareBuffer.allocate(&bufferDesc)) {
+		LOG(LOG_WARNING, "Could not allocate a color-output AHardwareBuffer, "
+			"retrying without GPU_COLOR_OUTPUT");
+		m_usage &= ~static_cast<uint64_t>(AHARDWAREBUFFER_USAGE_GPU_COLOR_OUTPUT);
+		bufferDesc.usage = m_usage;
+		if (!m_hardwareBuffer.allocate(&bufferDesc))
+			return;
+	}
 
 	if(m_image == nullptr)
 	{

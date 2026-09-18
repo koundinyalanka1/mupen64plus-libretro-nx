@@ -27,6 +27,9 @@
 #include <Graphics/Parameters.h>
 #include <Graphics/ColorBufferReader.h>
 #include "DisplayWindow.h"
+#ifdef __LIBRETRO__
+#include <mupen64plus-next_common.h>
+#endif
 
 using namespace std;
 using namespace graphics;
@@ -1462,6 +1465,12 @@ void FrameBufferList::OverscanBuffer::draw(u32 _fullHeight, bool _PAL)
 	drawer.copyTexturedRect(blitParams);
 }
 
+#ifdef __LIBRETRO__
+#define FB_SKIP_VIDEO_FRAME (libretro_skip_frame)
+#else
+#define FB_SKIP_VIDEO_FRAME (false)
+#endif
+
 void FrameBufferList::renderBuffer()
 {
 	if (g_debugger.isDebugMode()) {
@@ -1631,7 +1640,11 @@ void FrameBufferList::renderBuffer()
 	blitParams.readBuffer = readBuffer;
 	blitParams.invertY = config.frameBufferEmulation.enableOverscan == 0;
 
-	drawer.copyTexturedRect(blitParams);
+	/* Everything above is bookkeeping and cheap arithmetic, and is kept so the
+	 * next frame is identical whether or not this one was dropped. Only the
+	 * full-resolution output blits below are skipped. */
+	if (!FB_SKIP_VIDEO_FRAME)
+		drawer.copyTexturedRect(blitParams);
 
 	if (pNextBuffer != nullptr) {
 		pNextBuffer->m_isMainBuffer = true;
@@ -1663,11 +1676,13 @@ void FrameBufferList::renderBuffer()
 		blitParams.mask = blitMask::COLOR_BUFFER;
 		blitParams.readBuffer = readBuffer;
 
-		drawer.copyTexturedRect(blitParams);
+		if (!FB_SKIP_VIDEO_FRAME)
+			drawer.copyTexturedRect(blitParams);
 	}
 
 	gfxContext.bindFramebuffer(bufferTarget::READ_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
-	m_overscan.draw(vFullHeight, rdpRes.vi_ispal);
+	if (!FB_SKIP_VIDEO_FRAME)
+		m_overscan.draw(vFullHeight, rdpRes.vi_ispal);
 
 	wnd.swapBuffers();
 	if (m_pCurrent != nullptr) {

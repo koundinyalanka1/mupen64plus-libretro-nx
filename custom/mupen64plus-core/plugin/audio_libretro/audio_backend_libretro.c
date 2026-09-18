@@ -45,6 +45,9 @@
 #endif
 
 extern retro_audio_sample_batch_t audio_batch_cb;
+/* Frameskip valve state, owned by libretro.c. */
+extern bool libretro_audio_enabled;
+extern unsigned libretro_audio_frames_pushed;
 
 static unsigned MAX_AUDIO_FRAMES = 2048;
 
@@ -350,9 +353,13 @@ static void aiLenChanged(void* user_data, const void* buffer, size_t size)
       }
 
       out = audio_out_buffer_s16;
+      libretro_audio_frames_pushed += output_frames;
       while (output_frames)
       {
-         size_t ret     = audio_batch_cb(out, output_frames);
+         size_t ret;
+         if (!libretro_audio_enabled)
+            break;
+         ret            = audio_batch_cb(out, output_frames);
          output_frames -= ret;
          out           += ret * 2;
       }
@@ -387,9 +394,13 @@ audio_batch:
 
    out                    = audio_out_buffer_s16;
 
+   libretro_audio_frames_pushed += data.output_frames;
    while (data.output_frames)
    {
-      size_t ret          = audio_batch_cb(out, data.output_frames);
+      size_t ret;
+      if (!libretro_audio_enabled)
+         break;
+      ret                 = audio_batch_cb(out, data.output_frames);
       data.output_frames -= ret;
       out                += ret * 2;
    }

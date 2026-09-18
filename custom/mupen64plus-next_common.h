@@ -62,6 +62,8 @@ extern enum rdp_plugin_type current_rdp_type;
 extern enum rsp_plugin_type current_rsp_type;
 extern retro_environment_t environ_cb;
 extern bool libretro_swap_buffer;
+/* True when the frontend has asked the core to drop this frame's video. */
+extern bool libretro_skip_frame;
 
 // Misc Globals
 extern CONTROL Controls[4];
@@ -135,6 +137,8 @@ extern uint32_t IgnoreTLBExceptions;
 extern uint32_t EnableNativeResFactor;
 extern uint32_t EnableN64DepthCompare;
 extern uint32_t EnableThreadedRenderer;
+/* Swaps the threaded renderer may queue ahead; each one costs ~a frame of lag. */
+extern uint32_t ThreadedRendererQueueDepth;
 extern uint32_t EnableCopyAuxToRDRAM;
 extern uint32_t GLideN64IniBehaviour;
 

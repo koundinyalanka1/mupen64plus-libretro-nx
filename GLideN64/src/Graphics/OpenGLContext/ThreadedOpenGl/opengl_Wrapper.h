@@ -54,10 +54,13 @@ namespace opengl {
 		static std::chrono::time_point<std::chrono::high_resolution_clock> m_lastProfilingOutput;
 #endif
 
-		static const int MAX_SWAP = 2;
+		/* How many swaps the render thread may queue ahead. Each queued swap
+		 * is roughly a frame of added input lag, so this is worth tuning. */
+		static int MAX_SWAP;
 
 	public:
 		static void setThreadedMode(u32 _threaded);
+		static void setMaxSwap(int _maxSwap);
 
 		static void wrBlendFunc(GLenum sfactor, GLenum dfactor);
 		static void wrBlendFuncSeparate(GLenum sfactorcolor, GLenum dfactorcolor, GLenum sfactoralpha, GLenum dfactoralpha);

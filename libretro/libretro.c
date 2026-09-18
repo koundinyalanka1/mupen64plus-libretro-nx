@@ -140,6 +140,27 @@ static bool     context_setup_first_init = false;
 
 bool libretro_swap_buffer;
 
+/* Frameskip / AV-enable valve (RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE).
+ * Bit 0 = enable video, bit 1 = enable audio, bit 3 = hard-disable audio. */
+#define LIBRETRO_AV_ENABLE_VIDEO       (1 << 0)
+#define LIBRETRO_AV_ENABLE_AUDIO       (1 << 1)
+#define LIBRETRO_AV_HARD_DISABLE_AUDIO (1 << 3)
+
+/* Set for frames whose video the frontend has asked us not to produce. Read by
+ * GLideN64's VI composition pass to skip the screen blit, and here to present a
+ * duped frame instead of a real one. */
+bool libretro_skip_frame = false;
+/* Honoured by the libretro audio backend before it pushes a batch. */
+bool libretro_audio_enabled = true;
+
+/* Frames handed to audio_batch_cb during the current retro_run. */
+unsigned libretro_audio_frames_pushed = 0;
+/* Cleared on load; set once the AI actually starts streaming at the declared
+ * rate, after which no padding is emitted. */
+static bool audio_stream_started = false;
+
+#define LIBRETRO_AUDIO_DECLARED_RATE 44100.0
+
 uint32_t *blitter_buf = NULL;
 uint32_t *blitter_buf_lock = NULL;
 uint32_t retro_screen_width = 640;
@@ -202,6 +223,7 @@ uint32_t EnableTxCacheCompression = 0;
 uint32_t EnableNativeResFactor = 0;
 uint32_t EnableN64DepthCompare = 0;
 uint32_t EnableThreadedRenderer = 0;
+uint32_t ThreadedRendererQueueDepth = 2;
 uint32_t EnableCopyAuxToRDRAM = 0;
 uint32_t GLideN64IniBehaviour = 0;
 
@@ -1021,6 +1043,15 @@ static void update_variables(bool startup)
        if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
        {
           EnableThreadedRenderer = !strcmp(var.value, "True") ? 1 : 0;
+       }
+
+       var.key = CORE_NAME "-ThreadedRendererQueueDepth";
+       var.value = NULL;
+       if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+       {
+          uint32_t depth = (uint32_t)atoi(var.value);
+          if (depth >= 1 && depth <= 3)
+             ThreadedRendererQueueDepth = depth;
        }
 	    
        if(current_rdp_type == RDP_PLUGIN_GLIDEN64 && EnableThreadedRenderer)
@@ -1881,6 +1912,9 @@ bool retro_load_game(const struct retro_game_info *game)
     char* gamePath;
     char* newPath;
 
+    /* Re-arm the boot-time audio padding for the newly loaded ROM. */
+    audio_stream_started = false;
+
     // Workaround for broken subsystem on static platforms
     // Note: game->path can be NULL if loading from a archive
     // Current impl. uses mupen internals so that wouldn't work either way for dd/tpak
@@ -2048,6 +2082,27 @@ void retro_run (void)
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
        update_variables(false);
 
+    /* Ask the frontend whether it wants this frame's video and audio at all.
+     * Without this the core ignores frontend frameskip entirely and the frame
+     * rate simply sags whenever retro_run runs over budget. */
+    {
+       int av_enable = LIBRETRO_AV_ENABLE_VIDEO | LIBRETRO_AV_ENABLE_AUDIO;
+
+       if (environ_cb(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &av_enable))
+       {
+          libretro_skip_frame    = (av_enable & LIBRETRO_AV_ENABLE_VIDEO) == 0;
+          libretro_audio_enabled = (av_enable & LIBRETRO_AV_ENABLE_AUDIO) != 0 &&
+                                   (av_enable & LIBRETRO_AV_HARD_DISABLE_AUDIO) == 0;
+       }
+       else
+       {
+          libretro_skip_frame    = false;
+          libretro_audio_enabled = true;
+       }
+    }
+
+    libretro_audio_frames_pushed = 0;
+
     if(current_rdp_type == RDP_PLUGIN_GLIDEN64)
     {
        if(EnableThreadedRenderer)
@@ -2069,9 +2124,42 @@ void retro_run (void)
        glsm_ctl(GLSM_CTL_STATE_UNBIND, NULL);
     }
     
+    /* The AI does not stream for the first frames after boot, so the core
+     * under-delivers audio and a frontend that measures the output rate at
+     * startup reads it far too low. Pad with silence at the declared rate
+     * until the game's own audio actually starts arriving. */
+    if (!audio_stream_started && audio_batch_cb && libretro_audio_enabled)
+    {
+       /* 60 for NTSC/MPAL, 50 for PAL: 735 and 882 frames respectively. */
+       const unsigned fps = vi_expected_refresh_rate_from_tv_standard(ROM_PARAMS.systemtype);
+       const unsigned expected = (fps > 0)
+          ? (unsigned)(LIBRETRO_AUDIO_DECLARED_RATE / (double)fps) : 0;
+
+       if (expected != 0 && libretro_audio_frames_pushed >= expected)
+          audio_stream_started = true;
+       else if (expected > libretro_audio_frames_pushed)
+       {
+          static const int16_t silence[256 * 2] = {0};
+          unsigned remaining = expected - libretro_audio_frames_pushed;
+
+          while (remaining)
+          {
+             unsigned chunk = (remaining > 256) ? 256 : remaining;
+             audio_batch_cb(silence, chunk);
+             remaining -= chunk;
+          }
+       }
+    }
+
     if (libretro_swap_buffer)
     {
-       if(current_rdp_type == RDP_PLUGIN_GLIDEN64)
+       if (libretro_skip_frame)
+       {
+          /* Frontend discards this frame's video; hand it a duped frame so
+           * pacing is unchanged and it can catch up. */
+          video_cb(NULL, retro_screen_width, retro_screen_height, screen_pitch);
+       }
+       else if(current_rdp_type == RDP_PLUGIN_GLIDEN64)
        {
           video_cb(RETRO_HW_FRAME_BUFFER_VALID, retro_screen_width, retro_screen_height, 0);
        }

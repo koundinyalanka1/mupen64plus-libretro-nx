@@ -66,6 +66,7 @@ void DisplayWindowMupen64plus::_setAttributes()
 
 bool DisplayWindowMupen64plus::_start()
 {
+	FunctionWrapper::setMaxSwap((int)ThreadedRendererQueueDepth);
 	FunctionWrapper::setThreadedMode(EnableThreadedRenderer);
 	
 	_setAttributes();

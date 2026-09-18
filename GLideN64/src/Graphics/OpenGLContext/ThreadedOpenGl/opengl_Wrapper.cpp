@@ -19,6 +19,7 @@ namespace opengl {
 	bool FunctionWrapper::m_threaded_wrapper = false;
 	bool FunctionWrapper::m_shutdown = false;
 	int FunctionWrapper::m_swapBuffersQueued = 0;
+	int FunctionWrapper::MAX_SWAP = 2;
 	bool FunctionWrapper::m_fastVertexAttributes = false;
 	std::thread FunctionWrapper::m_commandExecutionThread;
 	std::mutex FunctionWrapper::m_condvarMutex;
@@ -133,6 +134,12 @@ namespace opengl {
 		}
 	}
 #endif
+
+	void FunctionWrapper::setMaxSwap(int _maxSwap)
+	{
+		if (_maxSwap >= 1)
+			MAX_SWAP = _maxSwap;
+	}
 
 	void FunctionWrapper::setThreadedMode(u32 _threaded)
 	{

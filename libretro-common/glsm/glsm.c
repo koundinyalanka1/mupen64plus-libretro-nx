@@ -3054,15 +3054,50 @@ static void glsm_state_setup(void)
    gl_state.framebuf[1].desired_location        = default_framebuffer;
 
    glBindFramebuffer(GL_FRAMEBUFFER, default_framebuffer);
-   GLint params;
-   if (!resetting_context)
-      framebuffers[default_framebuffer] = (struct gl_framebuffers*)calloc(1, sizeof(struct gl_framebuffers));
 
-   glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &params);
-   framebuffers[default_framebuffer]->color_attachment = params;
-   glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &params);
-   framebuffers[default_framebuffer]->depth_attachment = params;
-   framebuffers[default_framebuffer]->target = GL_TEXTURE_2D;
+   if (default_framebuffer < MAX_FRAMEBUFFERS)
+   {
+      /* On a context reset the existing entry is deliberately kept, but it
+       * must exist before it is dereferenced. */
+      if (!resetting_context || framebuffers[default_framebuffer] == NULL)
+         framebuffers[default_framebuffer] = (struct gl_framebuffers*)calloc(1, sizeof(struct gl_framebuffers));
+
+      if (framebuffers[default_framebuffer])
+      {
+         /* calloc() already zeroed this entry, which is the correct answer for
+          * the window-system default framebuffer: it has no attachment object
+          * names. Only a real FBO can be introspected -- querying
+          * GL_COLOR_ATTACHMENT0/GL_DEPTH_ATTACHMENT on framebuffer 0 is
+          * GL_INVALID_ENUM, and GL leaves the out-param untouched on error. */
+         if (default_framebuffer != 0)
+         {
+            GLint params   = 0;
+            GLint obj_type = GL_NONE;
+
+            glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &params);
+            framebuffers[default_framebuffer]->color_attachment = params;
+
+            params = 0;
+            glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &params);
+            framebuffers[default_framebuffer]->depth_attachment = params;
+
+            /* Do not assume a texture: a frontend may attach a renderbuffer. */
+            glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &obj_type);
+            framebuffers[default_framebuffer]->target =
+               (obj_type == GL_RENDERBUFFER) ? GL_RENDERBUFFER : GL_TEXTURE_2D;
+         }
+         else
+            framebuffers[default_framebuffer]->target = GL_TEXTURE_2D;
+      }
+
+      /* Drop any error raised above so it is not misattributed to the
+       * core's first real draw. Bounded so a driver that never clears its
+       * error state cannot hang startup. */
+      {
+         int drain = 0;
+         while (glGetError() != GL_NO_ERROR && ++drain < 16);
+      }
+   }
 
    gl_state.cullface.mode               = GL_BACK;
    gl_state.frontface.mode              = GL_CCW;

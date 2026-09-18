@@ -189,6 +189,21 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "False"
     },
     {
+        CORE_NAME "-ThreadedRendererQueueDepth",
+        "Threaded Renderer Queue Depth",
+        NULL,
+        "(GLN64) How many frames the Threaded Renderer may queue ahead. Each queued frame is roughly one frame of added input lag; lower values reduce lag at some cost to throughput. Only used when the Threaded Renderer is enabled.",
+        "How many frames the Threaded Renderer may queue ahead. Each queued frame is roughly one frame of added input lag; lower values reduce lag at some cost to throughput. Only used when the Threaded Renderer is enabled.",
+        "gliden64",
+        {
+            {"1", NULL},
+            {"2", NULL},
+            {"3", NULL},
+            { NULL, NULL },
+        },
+        "2"
+    },
+    {
         CORE_NAME "-BilinearMode",
         "Bilinear filtering mode",
         NULL,
