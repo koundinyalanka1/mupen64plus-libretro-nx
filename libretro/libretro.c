@@ -18,9 +18,19 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.          *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+/* Must precede every include: sched_getaffinity/CPU_COUNT are glibc/bionic
+ * extensions gated on _GNU_SOURCE in features.h. */
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__linux__)
+#include <sched.h>
+#include <unistd.h>
+#endif
 #include <compat/strl.h>
 
 #include "libretro.h"
@@ -468,9 +478,64 @@ static void emu_step_initialize(void)
     plugin_connect_all();
 }
 
+/* The emulation worker is created from the frontend's frame thread and so
+ * inherits its CPU affinity. When the frontend has pinned that thread to a
+ * single core, the worker lands on the same core as the GL command loop it is
+ * feeding: the two then time-slice one CPU, and the threaded renderer costs a
+ * queue, condvar traffic and a context switch per synced command while
+ * delivering no parallelism at all.
+ *
+ * Nobody chose that for the worker -- it is an artefact of pthread_create
+ * inheritance -- so widen it, and only in that case. If the frontend left two
+ * or more CPUs reachable it has expressed a real preference, honoured here
+ * untouched. Called from the worker itself so no _np extension is needed. */
+static void widen_own_affinity_if_pinned_solo(void)
+{
+#if defined(__linux__)
+    cpu_set_t inherited;
+    cpu_set_t widened;
+    long online;
+    long i;
+
+    CPU_ZERO(&inherited);
+    if (sched_getaffinity(0, sizeof(inherited), &inherited) != 0)
+        return;
+    if (CPU_COUNT(&inherited) != 1)
+        return;
+
+    online = sysconf(_SC_NPROCESSORS_ONLN);
+    if (online < 2)
+        return;
+
+    CPU_ZERO(&widened);
+    for (i = 0; i < online && i < CPU_SETSIZE; ++i)
+        CPU_SET((int)i, &widened);
+
+    if (sched_setaffinity(0, sizeof(widened), &widened) == 0)
+    {
+        if (log_cb)
+            log_cb(RETRO_LOG_INFO, CORE_NAME
+                ": frame thread is pinned to a single CPU; widened the emulation "
+                "worker to %ld CPUs so it can overlap with the command loop\n",
+                online);
+    }
+    else if (log_cb)
+        log_cb(RETRO_LOG_WARN, CORE_NAME
+            ": frame thread is pinned to a single CPU and the emulation worker "
+            "could not be widened; the threaded renderer will not overlap\n");
+#endif
+}
+
 static void* EmuThreadFunction(void* param)
 {
     uint32_t netplay_port = 0;
+
+    /* Only when this really is a separate pthread. With the threaded renderer
+     * off, EmuThreadFunction is the frontend frame thread's cothread body, and
+     * widening here would override the frontend's own affinity choice for its
+     * frame thread -- which is deliberate and none of the core's business. */
+    if (current_rdp_type == RDP_PLUGIN_GLIDEN64 && EnableThreadedRenderer)
+        widen_own_affinity_if_pinned_solo();
     uint16_t netplay_player = 1;
 
     initializing = false;

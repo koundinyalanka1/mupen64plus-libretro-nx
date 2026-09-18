@@ -1349,7 +1349,18 @@ f32 FrameBufferList::OverscanBuffer::getScaleY(u32 _fullHeight) const
 
 void FrameBufferList::OverscanBuffer::init()
 {
-	m_enabled = config.frameBufferEmulation.enableOverscan != 0;
+	/* With every offset at zero there is nothing to crop, and draw() below
+	 * degenerates into a full-screen copy of the buffer onto the default
+	 * framebuffer -- an extra render target plus a full-screen pass per frame
+	 * that cannot change a single pixel. Both TV standards are checked because
+	 * which one applies is only known per-game at draw time. */
+	const auto & pal = config.frameBufferEmulation.overscanPAL;
+	const auto & ntsc = config.frameBufferEmulation.overscanNTSC;
+	const bool cropsAnything =
+		(pal.left | pal.right | pal.top | pal.bottom |
+		 ntsc.left | ntsc.right | ntsc.top | ntsc.bottom) != 0;
+
+	m_enabled = config.frameBufferEmulation.enableOverscan != 0 && cropsAnything;
 	if (m_enabled)
 		m_FBO = gfxContext.createFramebuffer();
 
