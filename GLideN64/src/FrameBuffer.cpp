@@ -1690,7 +1690,10 @@ void FrameBufferList::renderBuffer()
 			CombinerInfo::get().getTexrectUpscaleCopyProgram();
 	}
 	blitParams.readBuffer = readBuffer;
-	blitParams.invertY = config.frameBufferEmulation.enableOverscan == 0;
+	/* When the overscan buffer is in use the flip is folded into draw()'s
+	 * source coordinates; when it is bypassed this blit goes straight to the
+	 * default framebuffer and has to do the flip itself. */
+	blitParams.invertY = !m_overscan.isEnabled();
 
 	if (!FrameSkip::skipPresentation())
 		drawer.copyTexturedRect(blitParams);

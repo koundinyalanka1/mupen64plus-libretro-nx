@@ -171,6 +171,12 @@ private:
 		u32 getDrawingWidth() const { return m_drawingWidth; }
 		u32 getBufferWidth() const { return m_bufferWidth; }
 		u32 getBufferHeight() const { return m_bufferHeight; }
+		/* Whether the intermediate buffer is actually in use. This is not the
+		 * same as config.frameBufferEmulation.enableOverscan: the buffer is
+		 * skipped when the configured offsets crop nothing. Callers that pick
+		 * a render path -- notably the Y flip -- must ask this, not the
+		 * option, or the two disagree and the image comes out upside down. */
+		bool isEnabled() const { return m_enabled; }
 
 	private:
 		s32 m_hOffset = 0;
