@@ -204,6 +204,21 @@ struct retro_core_option_v2_definition option_defs_us[] = {
         "2"
     },
     {
+        CORE_NAME "-FrameSkipMode",
+        "Frame Skip Work Reduction",
+        NULL,
+        "(GLN64) Work to omit when the frontend requests a skipped frame. Presentation preserves framebuffer effects. Readback also omits asynchronous color copies. Rendering additionally omits main-buffer draw submissions, which may affect effects that reuse earlier frames. Synchronous reads and known framebuffer compatibility paths are preserved.",
+        "Work to omit on frontend-requested skipped frames. Readback omits asynchronous color copies. Rendering also omits main-buffer draws and may affect effects that reuse earlier frames. Presentation preserves framebuffer effects.",
+        "gliden64",
+        {
+            {"Presentation", "Presentation only"},
+            {"Readback", "Presentation and async readback"},
+            {"Rendering", "Presentation, async readback and rendering"},
+            { NULL, NULL },
+        },
+        "Readback"
+    },
+    {
         CORE_NAME "-BilinearMode",
         "Bilinear filtering mode",
         NULL,

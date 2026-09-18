@@ -33,9 +33,20 @@ namespace opengl {
 
 	void OpenGlCommand::performCommand()
 	{
+		/* An unsynced command publishes nothing through the condvar and has
+		 * nobody waiting on it, so taking the mutex would only add two atomic
+		 * round-trips to every GL call -- and it would be held across the GL
+		 * call itself, contending with the producer. m_synced is fixed at
+		 * construction and each command pool holds a single command type, so
+		 * this cannot change between the two sides. */
+		if (!m_synced) {
+			performCommandSingleThreaded();
+			return;
+		}
+
 		std::unique_lock<std::mutex> lock(m_condvarMutex);
 		performCommandSingleThreaded();
-		if (m_synced) {
+		{
 #ifdef GL_DEBUG
 			if (m_logIfSynced) {
 				std::stringstream errorString;
@@ -50,9 +61,14 @@ namespace opengl {
 
 	void OpenGlCommand::waitOnCommand()
 	{
+		/* Nothing to wait for, and m_executed is only meaningful for synced
+		 * commands. See performCommand(). */
+		if (!m_synced)
+			return;
+
 		std::unique_lock<std::mutex> lock(m_condvarMutex);
 
-		if (m_synced && !m_executed) {
+		if (!m_executed) {
 			m_condition.wait(lock, [this] { return m_executed; });
 		}
 

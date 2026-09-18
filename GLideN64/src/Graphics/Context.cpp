@@ -1,5 +1,6 @@
 #include "Context.h"
 #include "OpenGLContext/opengl_ContextImpl.h"
+#include <FrameSkip.h>
 
 using namespace graphics;
 
@@ -334,16 +335,22 @@ void Context::resetShaderProgram()
 
 void Context::drawTriangles(const DrawTriangleParameters & _params)
 {
+	if (FrameSkip::skipDraw())
+		return;
 	m_impl->drawTriangles(_params);
 }
 
 void Context::drawRects(const DrawRectParameters & _params)
 {
+	if (_params.allowFrameSkip && FrameSkip::skipDraw())
+		return;
 	m_impl->drawRects(_params);
 }
 
 void Context::drawLine(f32 _width, SPVertex * _vertices)
 {
+	if (FrameSkip::skipDraw())
+		return;
 	m_impl->drawLine(_width, _vertices);
 }
 

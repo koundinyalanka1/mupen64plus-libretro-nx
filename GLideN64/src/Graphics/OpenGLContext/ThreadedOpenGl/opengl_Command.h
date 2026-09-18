@@ -32,16 +32,20 @@ namespace opengl {
 
 		virtual void commandToExecute() = 0;
 
+		/* Returns a borrowed pointer. Commands live in the pool for the
+		 * process lifetime, so refcounting them bought no safety and cost
+		 * several atomic round-trips on every GL call. */
 		template<typename CoomandType>
-		static std::shared_ptr<CoomandType> getFromPool(int _poolId) {
-			auto poolObject = OpenGlCommandPool::get().getAvailableObject(_poolId);
+		static CoomandType * getFromPool(int _poolId) {
+			PoolObject * poolObject = OpenGlCommandPool::get().getAvailableObject(_poolId);
 			if (poolObject == nullptr) {
-				poolObject = std::shared_ptr<CoomandType>(new CoomandType);
-				OpenGlCommandPool::get().addObjectToPool(_poolId, poolObject);
+				std::shared_ptr<CoomandType> newObject(new CoomandType);
+				OpenGlCommandPool::get().addObjectToPool(_poolId, newObject);
+				poolObject = newObject.get();
 			}
 
 			poolObject->setInUse(true);
-			return std::static_pointer_cast<CoomandType>(poolObject);
+			return static_cast<CoomandType *>(poolObject);
 		}
 
 #ifdef GL_DEBUG
@@ -51,7 +55,8 @@ namespace opengl {
 #endif
 
 	private:
-		std::atomic<bool> m_synced;
+		/* Set once by the constructor and never written again. */
+		const bool m_synced;
 		bool m_executed;
 		std::mutex m_condvarMutex;
 		std::condition_variable m_condition;

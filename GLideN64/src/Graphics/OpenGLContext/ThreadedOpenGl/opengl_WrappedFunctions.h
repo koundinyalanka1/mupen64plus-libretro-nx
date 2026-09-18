@@ -21,6 +21,9 @@
 #include <string.h> // memcpy
 
 #include <mupen64plus-next_common.h>
+#ifdef __LIBRETRO__
+#include <frame_skip.h>
+#endif
 #include <libco.h>
 extern "C" cothread_t retro_thread;
 
@@ -44,7 +47,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum sfactor, GLenum dfactor)
+	static OpenGlCommand * get(GLenum sfactor, GLenum dfactor)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBlendFuncCommand>(poolId);
@@ -75,7 +78,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum sfactorcolor, GLenum dfactorcolor, GLenum sfactoralpha, GLenum dfactoralpha)
+	static OpenGlCommand * get(GLenum sfactorcolor, GLenum dfactorcolor, GLenum sfactoralpha, GLenum dfactoralpha)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBlendFuncSeparateCommand>(poolId);
@@ -111,7 +114,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum pname, GLint param)
+	static OpenGlCommand * get(GLenum pname, GLint param)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlPixelStoreiCommand>(poolId);
@@ -144,7 +147,7 @@ public:
 
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
+	static OpenGlCommand * get(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlClearColorCommand>(poolId);
@@ -179,7 +182,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum mode)
+	static OpenGlCommand * get(GLenum mode)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCullFaceCommand>(poolId);
@@ -209,7 +212,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum func)
+	static OpenGlCommand * get(GLenum func)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDepthFuncCommand>(poolId);
@@ -240,7 +243,7 @@ public:
 
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLboolean flag)
+	static OpenGlCommand * get(GLboolean flag)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDepthMaskCommand>(poolId);
@@ -270,7 +273,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum cap)
+	static OpenGlCommand * get(GLenum cap)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDisableCommand>(poolId);
@@ -300,7 +303,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum cap)
+	static OpenGlCommand * get(GLenum cap)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlEnableCommand>(poolId);
@@ -330,7 +333,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLuint index)
+	static OpenGlCommand * get(GLenum target, GLuint index)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDisableiCommand>(poolId);
@@ -362,7 +365,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLuint index)
+	static OpenGlCommand * get(GLenum target, GLuint index)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlEnableiCommand>(poolId);
@@ -394,7 +397,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLfloat factor, GLfloat units)
+	static OpenGlCommand * get(GLfloat factor, GLfloat units)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlPolygonOffsetCommand>(poolId);
@@ -426,7 +429,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint x, GLint y, GLsizei width, GLsizei height)
+	static OpenGlCommand * get(GLint x, GLint y, GLsizei width, GLsizei height)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlScissorCommand>(poolId);
@@ -462,7 +465,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint x, GLint y, GLsizei width, GLsizei height)
+	static OpenGlCommand * get(GLint x, GLint y, GLsizei width, GLsizei height)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlViewportCommand>(poolId);
@@ -498,7 +501,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLuint texture)
+	static OpenGlCommand * get(GLenum target, GLuint texture)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBindTextureCommand>(poolId);
@@ -530,7 +533,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height,
+	static OpenGlCommand * get(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height,
 		GLint border, GLenum format, GLenum type, const PoolBufferPointer& pixels)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -580,7 +583,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLenum pname, GLint param)
+	static OpenGlCommand * get(GLenum target, GLenum pname, GLint param)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlTexParameteriCommand>(poolId);
@@ -614,7 +617,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum pname, GLint* data)
+	static OpenGlCommand * get(GLenum pname, GLint* data)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetIntegervCommand>(poolId);
@@ -646,7 +649,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum name, const GLubyte*& returnValue)
+	static OpenGlCommand * get(GLenum name, const GLubyte*& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetStringCommand>(poolId);
@@ -678,7 +681,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels)
+	static OpenGlCommand * get(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlReadPixelsCommand>(poolId);
@@ -720,7 +723,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type)
+	static OpenGlCommand * get(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlReadPixelsAsyncCommand>(poolId);
@@ -771,7 +774,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height,
+	static OpenGlCommand * get(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height,
 		GLenum format, GLenum type, const PoolBufferPointer& pixels)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -821,7 +824,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum mode, GLint first, GLsizei count)
+	static OpenGlCommand * get(GLenum mode, GLint first, GLsizei count)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDrawArraysCommand>(poolId);
@@ -985,7 +988,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer)
+	static OpenGlCommand * get(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlVertexAttribPointerUnbufferedCommand>(poolId);
@@ -1025,7 +1028,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum mode, GLint first, GLsizei count, const PoolBufferPointer& data)
+	static OpenGlCommand * get(GLenum mode, GLint first, GLsizei count, const PoolBufferPointer& data)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDrawArraysUnbufferedCommand>(poolId);
@@ -1078,7 +1081,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum& returnValue)
+	static OpenGlCommand * get(GLenum& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetErrorCommand>(poolId);
@@ -1108,7 +1111,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum mode, GLsizei count, GLenum type, const PoolBufferPointer& indices,
+	static OpenGlCommand * get(GLenum mode, GLsizei count, GLenum type, const PoolBufferPointer& indices,
 		const PoolBufferPointer& data)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -1165,7 +1168,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLfloat width)
+	static OpenGlCommand * get(GLfloat width)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlLineWidthCommand>(poolId);
@@ -1195,7 +1198,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLbitfield mask)
+	static OpenGlCommand * get(GLbitfield mask)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlClearCommand>(poolId);
@@ -1225,7 +1228,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum buffer, GLint drawbuffer, const PoolBufferPointer& value)
+	static OpenGlCommand * get(GLenum buffer, GLint drawbuffer, const PoolBufferPointer& value)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlClearBufferfvCommand>(poolId);
@@ -1260,7 +1263,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum pname, GLfloat* data)
+	static OpenGlCommand * get(GLenum pname, GLfloat* data)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetFloatvCommand>(poolId);
@@ -1292,7 +1295,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, const PoolBufferPointer& textures)
+	static OpenGlCommand * get(GLsizei n, const PoolBufferPointer& textures)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDeleteTexturesCommand>(poolId);
@@ -1325,7 +1328,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, GLuint* textures)
+	static OpenGlCommand * get(GLsizei n, GLuint* textures)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGenTexturesCommand>(poolId);
@@ -1357,7 +1360,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLenum pname, GLfloat param)
+	static OpenGlCommand * get(GLenum target, GLenum pname, GLfloat param)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlTexParameterfCommand>(poolId);
@@ -1391,7 +1394,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum texture)
+	static OpenGlCommand * get(GLenum texture)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlActiveTextureCommand>(poolId);
@@ -1421,7 +1424,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
+	static OpenGlCommand * get(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBlendColorCommand>(poolId);
@@ -1457,7 +1460,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum src)
+	static OpenGlCommand * get(GLenum src)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlReadBufferCommand>(poolId);
@@ -1487,7 +1490,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum type, GLuint& returnValue)
+	static OpenGlCommand * get(GLenum type, GLuint& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCreateShaderCommand>(poolId);
@@ -1519,7 +1522,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint shader)
+	static OpenGlCommand * get(GLuint shader)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCompileShaderCommand>(poolId);
@@ -1549,7 +1552,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint shader, std::vector<std::string>& strings)
+	static OpenGlCommand * get(GLuint shader, std::vector<std::string>& strings)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlShaderSourceCommand>(poolId);
@@ -1586,7 +1589,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint& returnValue)
+	static OpenGlCommand * get(GLuint& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCreateProgramCommand>(poolId);
@@ -1616,7 +1619,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLuint shader)
+	static OpenGlCommand * get(GLuint program, GLuint shader)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlAttachShaderCommand>(poolId);
@@ -1648,7 +1651,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program)
+	static OpenGlCommand * get(GLuint program)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlLinkProgramCommand>(poolId);
@@ -1678,7 +1681,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program)
+	static OpenGlCommand * get(GLuint program)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUseProgramCommand>(poolId);
@@ -1708,7 +1711,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, const GLchar* name, GLint& returnValue)
+	static OpenGlCommand * get(GLuint program, const GLchar* name, GLint& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetUniformLocationCommand>(poolId);
@@ -1742,7 +1745,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint location, GLint v0)
+	static OpenGlCommand * get(GLint location, GLint v0)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniform1iCommand>(poolId);
@@ -1774,7 +1777,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint location, GLfloat v0)
+	static OpenGlCommand * get(GLint location, GLfloat v0)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniform1fCommand>(poolId);
@@ -1806,7 +1809,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint location, GLfloat v0, GLfloat v1)
+	static OpenGlCommand * get(GLint location, GLfloat v0, GLfloat v1)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniform2fCommand>(poolId);
@@ -1841,7 +1844,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint location, GLint v0, GLint v1)
+	static OpenGlCommand * get(GLint location, GLint v0, GLint v1)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniform2iCommand>(poolId);
@@ -1875,7 +1878,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint location, GLint v0, GLint v1, GLint v2, GLint v3)
+	static OpenGlCommand * get(GLint location, GLint v0, GLint v1, GLint v2, GLint v3)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniform4iCommand>(poolId);
@@ -1913,7 +1916,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
+	static OpenGlCommand * get(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniform4fCommand>(poolId);
@@ -1951,7 +1954,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint location, GLsizei count, const PoolBufferPointer& value)
+	static OpenGlCommand * get(GLint location, GLsizei count, const PoolBufferPointer& value)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniform3fvCommand>(poolId);
@@ -1986,7 +1989,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint location, GLsizei count, const PoolBufferPointer& value)
+	static OpenGlCommand * get(GLint location, GLsizei count, const PoolBufferPointer& value)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniform4fvCommand>(poolId);
@@ -2021,7 +2024,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLuint shader)
+	static OpenGlCommand * get(GLuint program, GLuint shader)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDetachShaderCommand>(poolId);
@@ -2053,7 +2056,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint shader)
+	static OpenGlCommand * get(GLuint shader)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDeleteShaderCommand>(poolId);
@@ -2083,7 +2086,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program)
+	static OpenGlCommand * get(GLuint program)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDeleteProgramCommand>(poolId);
@@ -2113,7 +2116,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLsizei bufSize, GLsizei* length, GLchar* infoLog)
+	static OpenGlCommand * get(GLuint program, GLsizei bufSize, GLsizei* length, GLchar* infoLog)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetProgramInfoLogCommand>(poolId);
@@ -2149,7 +2152,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog)
+	static OpenGlCommand * get(GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetShaderInfoLogCommand>(poolId);
@@ -2185,7 +2188,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint shader, GLenum pname, GLint* params)
+	static OpenGlCommand * get(GLuint shader, GLenum pname, GLint* params)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetShaderivCommand>(poolId);
@@ -2219,7 +2222,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLenum pname, GLint*& params)
+	static OpenGlCommand * get(GLuint program, GLenum pname, GLint*& params)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetProgramivCommand>(poolId);
@@ -2253,7 +2256,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint index)
+	static OpenGlCommand * get(GLuint index)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlEnableVertexAttribArrayCommand>(poolId);
@@ -2284,7 +2287,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint index)
+	static OpenGlCommand * get(GLuint index)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDisableVertexAttribArrayCommand>(poolId);
@@ -2315,7 +2318,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
+	static OpenGlCommand * get(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride,
 		const GLvoid* offset)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -2357,7 +2360,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLuint index, const std::string name)
+	static OpenGlCommand * get(GLuint program, GLuint index, const std::string name)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBindAttribLocationCommand>(poolId);
@@ -2391,7 +2394,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint index, GLfloat x)
+	static OpenGlCommand * get(GLuint index, GLfloat x)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlVertexAttrib1fCommand>(poolId);
@@ -2423,7 +2426,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+	static OpenGlCommand * get(GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlVertexAttrib4fCommand>(poolId);
@@ -2461,7 +2464,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint index, const PoolBufferPointer& v)
+	static OpenGlCommand * get(GLuint index, const PoolBufferPointer& v)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlVertexAttrib4fvCommand>(poolId);
@@ -2494,7 +2497,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLfloat n, GLfloat f)
+	static OpenGlCommand * get(GLfloat n, GLfloat f)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDepthRangefCommand>(poolId);
@@ -2526,7 +2529,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLfloat d)
+	static OpenGlCommand * get(GLfloat d)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlClearDepthfCommand>(poolId);
@@ -2556,7 +2559,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, const PoolBufferPointer& bufs)
+	static OpenGlCommand * get(GLsizei n, const PoolBufferPointer& bufs)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDrawBuffersCommand>(poolId);
@@ -2589,7 +2592,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, GLuint* framebuffers)
+	static OpenGlCommand * get(GLsizei n, GLuint* framebuffers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGenFramebuffersCommand>(poolId);
@@ -2621,7 +2624,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLuint framebuffer)
+	static OpenGlCommand * get(GLenum target, GLuint framebuffer)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBindFramebufferCommand>(poolId);
@@ -2653,7 +2656,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, const PoolBufferPointer& framebuffers)
+	static OpenGlCommand * get(GLsizei n, const PoolBufferPointer& framebuffers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDeleteFramebuffersCommand>(poolId);
@@ -2686,7 +2689,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+	static OpenGlCommand * get(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlFramebufferTexture2DCommand>(poolId);
@@ -2724,7 +2727,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width,
+	static OpenGlCommand * get(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width,
 		GLsizei height, GLboolean fixedsamplelocations)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -2766,7 +2769,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width,
+	static OpenGlCommand * get(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width,
 		GLsizei height, GLboolean fixedsamplelocations)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -2808,7 +2811,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, GLuint* renderbuffers)
+	static OpenGlCommand * get(GLsizei n, GLuint* renderbuffers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGenRenderbuffersCommand>(poolId);
@@ -2840,7 +2843,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLuint renderbuffer)
+	static OpenGlCommand * get(GLenum target, GLuint renderbuffer)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBindRenderbufferCommand>(poolId);
@@ -2872,7 +2875,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLenum internalformat, GLsizei width, GLsizei height)
+	static OpenGlCommand * get(GLenum target, GLenum internalformat, GLsizei width, GLsizei height)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlRenderbufferStorageCommand>(poolId);
@@ -2908,7 +2911,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, const PoolBufferPointer& renderbuffers)
+	static OpenGlCommand * get(GLsizei n, const PoolBufferPointer& renderbuffers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDeleteRenderbuffersCommand>(poolId);
@@ -2941,7 +2944,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
+	static OpenGlCommand * get(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlFramebufferRenderbufferCommand>(poolId);
@@ -2977,7 +2980,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLenum& returnValue)
+	static OpenGlCommand * get(GLenum target, GLenum& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCheckFramebufferStatusCommand>(poolId);
@@ -3009,7 +3012,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0,
+	static OpenGlCommand * get(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0,
 		GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -3060,7 +3063,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, GLuint* arrays)
+	static OpenGlCommand * get(GLsizei n, GLuint* arrays)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGenVertexArraysCommand>(poolId);
@@ -3092,7 +3095,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint array)
+	static OpenGlCommand * get(GLuint array)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBindVertexArrayCommand>(poolId);
@@ -3122,7 +3125,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, const PoolBufferPointer& arrays)
+	static OpenGlCommand * get(GLsizei n, const PoolBufferPointer& arrays)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDeleteVertexArraysCommand>(poolId);
@@ -3155,7 +3158,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, GLuint* buffers)
+	static OpenGlCommand * get(GLsizei n, GLuint* buffers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGenBuffersCommand>(poolId);
@@ -3187,7 +3190,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLuint buffer)
+	static OpenGlCommand * get(GLenum target, GLuint buffer)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBindBufferCommand>(poolId);
@@ -3238,7 +3241,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLsizeiptr size, const PoolBufferPointer& data, GLenum usage)
+	static OpenGlCommand * get(GLenum target, GLsizeiptr size, const PoolBufferPointer& data, GLenum usage)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBufferDataCommand>(poolId);
@@ -3275,7 +3278,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLenum access)
+	static OpenGlCommand * get(GLenum target, GLenum access)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlMapBufferCommand>(poolId);
@@ -3307,7 +3310,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access,
+	static OpenGlCommand * get(GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access,
 		void*& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -3347,7 +3350,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLintptr offset, GLsizeiptr length,
+	static OpenGlCommand * get(GLenum target, GLintptr offset, GLsizeiptr length,
 		GLbitfield access, const PoolBufferPointer& data)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -3438,7 +3441,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLintptr offset, GLsizeiptr length,
+	static OpenGlCommand * get(GLenum target, GLintptr offset, GLsizeiptr length,
 		GLbitfield access)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -3499,7 +3502,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLboolean& returnValue)
+	static OpenGlCommand * get(GLenum target, GLboolean& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUnmapBufferCommand>(poolId);
@@ -3531,7 +3534,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target)
+	static OpenGlCommand * get(GLenum target)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUnmapBufferAsyncCommand>(poolId);
@@ -3561,7 +3564,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, const PoolBufferPointer& buffers)
+	static OpenGlCommand * get(GLsizei n, const PoolBufferPointer& buffers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDeleteBuffersCommand>(poolId);
@@ -3594,7 +3597,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer,
+	static OpenGlCommand * get(GLuint unit, GLuint texture, GLint level, GLboolean layered, GLint layer,
 		GLenum access, GLenum format)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -3638,7 +3641,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLbitfield barriers)
+	static OpenGlCommand * get(GLbitfield barriers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlMemoryBarrierCommand>(poolId);
@@ -3668,7 +3671,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get()
+	static OpenGlCommand * get()
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlTextureBarrierCommand>(poolId);
@@ -3695,7 +3698,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get()
+	static OpenGlCommand * get()
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlTextureBarrierNVCommand>(poolId);
@@ -3722,7 +3725,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum name, GLuint index, const GLubyte*& returnValue)
+	static OpenGlCommand * get(GLenum name, GLuint index, const GLubyte*& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetStringiCommand>(poolId);
@@ -3756,7 +3759,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLsizei numAttachments, const PoolBufferPointer& attachments)
+	static OpenGlCommand * get(GLenum target, GLsizei numAttachments, const PoolBufferPointer& attachments)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlInvalidateFramebufferCommand>(poolId);
@@ -3791,7 +3794,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLsizeiptr size, const PoolBufferPointer& data, GLbitfield flags)
+	static OpenGlCommand * get(GLenum target, GLsizeiptr size, const PoolBufferPointer& data, GLbitfield flags)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBufferStorageCommand>(poolId);
@@ -3828,7 +3831,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum condition, GLbitfield flags, GLsync& returnValue)
+	static OpenGlCommand * get(GLenum condition, GLbitfield flags, GLsync& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlFenceSyncCommand>(poolId);
@@ -3862,7 +3865,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsync sync, GLbitfield flags, GLuint64 timeout)
+	static OpenGlCommand * get(GLsync sync, GLbitfield flags, GLuint64 timeout)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlClientWaitSyncCommand>(poolId);
@@ -3896,7 +3899,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsync sync)
+	static OpenGlCommand * get(GLsync sync)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDeleteSyncCommand>(poolId);
@@ -3926,7 +3929,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, const GLchar* uniformBlockName, GLuint& returnValue)
+	static OpenGlCommand * get(GLuint program, const GLchar* uniformBlockName, GLuint& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetUniformBlockIndexCommand>(poolId);
@@ -3960,7 +3963,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding)
+	static OpenGlCommand * get(GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlUniformBlockBindingCommand>(poolId);
@@ -3994,7 +3997,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLuint uniformBlockIndex, GLenum pname, GLint* params)
+	static OpenGlCommand * get(GLuint program, GLuint uniformBlockIndex, GLenum pname, GLint* params)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetActiveUniformBlockivCommand>(poolId);
@@ -4030,7 +4033,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLsizei uniformCount, const GLchar* const* uniformNames,
+	static OpenGlCommand * get(GLuint program, GLsizei uniformCount, const GLchar* const* uniformNames,
 		GLuint* uniformIndices)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -4068,7 +4071,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLsizei uniformCount, const GLuint* uniformIndices, GLenum pname,
+	static OpenGlCommand * get(GLuint program, GLsizei uniformCount, const GLuint* uniformIndices, GLenum pname,
 		GLint* params)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -4108,7 +4111,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLuint index, GLuint buffer)
+	static OpenGlCommand * get(GLenum target, GLuint index, GLuint buffer)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBindBufferBaseCommand>(poolId);
@@ -4142,7 +4145,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLintptr offset, GLsizeiptr size, const PoolBufferPointer& data)
+	static OpenGlCommand * get(GLenum target, GLintptr offset, GLsizeiptr size, const PoolBufferPointer& data)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlBufferSubDataCommand>(poolId);
@@ -4179,7 +4182,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLsizei bufSize, GLsizei* length, GLenum* binaryFormat, void* binary)
+	static OpenGlCommand * get(GLuint program, GLsizei bufSize, GLsizei* length, GLenum* binaryFormat, void* binary)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlGetProgramBinaryCommand>(poolId);
@@ -4217,7 +4220,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLenum binaryFormat, const PoolBufferPointer& binary, GLsizei length)
+	static OpenGlCommand * get(GLuint program, GLenum binaryFormat, const PoolBufferPointer& binary, GLsizei length)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlProgramBinaryCommand>(poolId);
@@ -4254,7 +4257,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint program, GLenum pname, GLint value)
+	static OpenGlCommand * get(GLuint program, GLenum pname, GLint value)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlProgramParameteriCommand>(poolId);
@@ -4288,7 +4291,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
+	static OpenGlCommand * get(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlTexStorage2DCommand>(poolId);
@@ -4326,7 +4329,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
+	static OpenGlCommand * get(GLuint texture, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlTextureStorage2DCommand>(poolId);
@@ -4364,7 +4367,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
+	static OpenGlCommand * get(GLuint texture, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
 		GLsizei height, GLenum format, GLenum type, const PoolBufferPointer& pixels)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -4414,7 +4417,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint texture, GLenum target, GLsizei samples, GLenum internalformat,
+	static OpenGlCommand * get(GLuint texture, GLenum target, GLsizei samples, GLenum internalformat,
 		GLsizei width, GLsizei height, GLboolean fixedsamplelocations)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -4459,7 +4462,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint texture, GLenum pname, GLint param)
+	static OpenGlCommand * get(GLuint texture, GLenum pname, GLint param)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlTextureParameteriCommand>(poolId);
@@ -4493,7 +4496,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint texture, GLenum pname, GLfloat param)
+	static OpenGlCommand * get(GLuint texture, GLenum pname, GLfloat param)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlTextureParameterfCommand>(poolId);
@@ -4527,7 +4530,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLsizei n, GLuint* textures)
+	static OpenGlCommand * get(GLenum target, GLsizei n, GLuint* textures)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCreateTexturesCommand>(poolId);
@@ -4561,7 +4564,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, GLuint* buffers)
+	static OpenGlCommand * get(GLsizei n, GLuint* buffers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCreateBuffersCommand>(poolId);
@@ -4593,7 +4596,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLsizei n, GLuint* framebuffers)
+	static OpenGlCommand * get(GLsizei n, GLuint* framebuffers)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCreateFramebuffersCommand>(poolId);
@@ -4625,7 +4628,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level)
+	static OpenGlCommand * get(GLuint framebuffer, GLenum attachment, GLuint texture, GLint level)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlNamedFramebufferTextureCommand>(poolId);
@@ -4661,7 +4664,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type,
+	static OpenGlCommand * get(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type,
 		const u16* indices, GLint basevertex)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -4705,7 +4708,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLintptr offset, GLsizeiptr length)
+	static OpenGlCommand * get(GLenum target, GLintptr offset, GLsizeiptr length)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlFlushMappedBufferRangeCommand>(poolId);
@@ -4739,7 +4742,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get()
+	static OpenGlCommand * get()
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlFinishCommand>(poolId);
@@ -4767,7 +4770,7 @@ public:
     {
     }
 
-    static std::shared_ptr<OpenGlCommand> get()
+    static OpenGlCommand * get()
     {
         static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
         auto ptr = getFromPool<GlFlushCommand>(poolId);
@@ -4795,7 +4798,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border)
+	static OpenGlCommand * get(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlCopyTexImage2DCommand>(poolId);
@@ -4839,7 +4842,7 @@ class GlDebugMessageCallbackCommand : public OpenGlCommand
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLDEBUGPROC callback, const void *userParam)
+	static OpenGlCommand * get(GLDEBUGPROC callback, const void *userParam)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDebugMessageCallbackCommand>(poolId);
@@ -4871,7 +4874,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint *ids, GLboolean enabled)
+	static OpenGlCommand * get(GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint *ids, GLboolean enabled)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlDebugMessageControlCommand>(poolId);
@@ -4911,7 +4914,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, void* image)
+	static OpenGlCommand * get(GLenum target, void* image)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlEGLImageTargetTexture2DOESCommand>(poolId);
@@ -4943,7 +4946,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(GLenum target, void* image)
+	static OpenGlCommand * get(GLenum target, void* image)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<GlEGLImageTargetRenderbufferStorageOESCommand>(poolId);
@@ -4975,7 +4978,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get()
+	static OpenGlCommand * get()
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<ShutdownCommand>(poolId);
@@ -5007,7 +5010,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(const AHardwareBuffer *buffer, EGLClientBuffer& returnValue)
+	static OpenGlCommand * get(const AHardwareBuffer *buffer, EGLClientBuffer& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<EglGetNativeClientBufferANDROIDCommand>(poolId);
@@ -5041,7 +5044,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(m64p_error& returnValue)
+	static OpenGlCommand * get(m64p_error& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<CoreVideoInitCommand>(poolId);
@@ -5072,7 +5075,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get()
+	static OpenGlCommand * get()
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<CoreVideoQuitCommand>(poolId);
@@ -5101,7 +5104,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(int screenWidth, int screenHeight, int bitsPerPixel, m64p_video_mode mode,
+	static OpenGlCommand * get(int screenWidth, int screenHeight, int bitsPerPixel, m64p_video_mode mode,
 		m64p_video_flags flags, m64p_error& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -5150,7 +5153,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(int screenWidth, int screenHeight, int refreshRate, int bitsPerPixel, m64p_video_mode mode,
+	static OpenGlCommand * get(int screenWidth, int screenHeight, int refreshRate, int bitsPerPixel, m64p_video_mode mode,
 		m64p_video_flags flags, m64p_error& returnValue)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
@@ -5201,7 +5204,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(m64p_GLattr attribute, int value)
+	static OpenGlCommand * get(m64p_GLattr attribute, int value)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<CoreVideoGLSetAttributeCommand>(poolId);
@@ -5235,7 +5238,7 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(m64p_GLattr attribute, int* value)
+	static OpenGlCommand * get(m64p_GLattr attribute, int* value)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<CoreVideoGLGetAttributeCommand>(poolId);
@@ -5269,11 +5272,12 @@ public:
 	{
 	}
 
-	static std::shared_ptr<OpenGlCommand> get(std::function<void()> swapBuffersCallback)
+	static OpenGlCommand * get(std::function<void()> swapBuffersCallback,
+		unsigned frameSkipFlags = 0)
 	{
 		static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 		auto ptr = getFromPool<CoreVideoGLSwapBuffersCommand>(poolId);
-		ptr->set(swapBuffersCallback);
+		ptr->set(swapBuffersCallback, frameSkipFlags);
 		return ptr;
 	}
 
@@ -5282,6 +5286,9 @@ public:
 #ifndef __LIBRETRO__
 		::CoreVideo_GL_SwapBuffers();
 #else
+		/* Publish the decision this frame was actually produced under, before
+		 * handing control back to the frontend to present it. */
+		libretro_set_presented_frame_skip(m_frameSkipFlags);
 		libretro_swap_buffer = true;
 		if(EnableThreadedRenderer)
 		{
@@ -5292,12 +5299,14 @@ public:
 	}
 
 private:
-	void set(std::function<void()> swapBuffersCallback)
+	void set(std::function<void()> swapBuffersCallback, unsigned frameSkipFlags)
 	{
 		m_swapBuffersCallback = swapBuffersCallback;
+		m_frameSkipFlags = frameSkipFlags;
 	}
 
 	std::function<void()> m_swapBuffersCallback;
+	unsigned m_frameSkipFlags = 0;
 };
 #else
 	//Zilmar API functions
@@ -5309,7 +5318,7 @@ private:
 		{
 		}
 
-		static std::shared_ptr<OpenGlCommand> get(bool& returnValue)
+		static OpenGlCommand * get(bool& returnValue)
 		{
 			static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 			auto ptr = getFromPool<WindowsStartCommand>(poolId);
@@ -5339,7 +5348,7 @@ private:
 		{
 		}
 
-		static std::shared_ptr<OpenGlCommand> get()
+		static OpenGlCommand * get()
 		{
 			static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 			auto ptr = getFromPool<WindowsStopCommand>(poolId);
@@ -5366,7 +5375,7 @@ private:
 		{
 		}
 
-		static std::shared_ptr<OpenGlCommand> get(std::function<void()> swapBuffersCallback)
+		static OpenGlCommand * get(std::function<void()> swapBuffersCallback)
 		{
 			static int poolId = OpenGlCommandPool::get().getNextAvailablePool();
 			auto ptr = getFromPool<WindowsSwapBuffersCommand>(poolId);

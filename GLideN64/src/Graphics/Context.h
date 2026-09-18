@@ -279,6 +279,8 @@ namespace graphics {
 		struct DrawRectParameters
 		{
 			DrawModeParam mode;
+			// Internal copies/readback/postprocessing must still execute.
+			bool allowFrameSkip = false;
 			bool texrect = true;
 			u32 verticesCount = 0;
 			RectVertex * vertices = nullptr;

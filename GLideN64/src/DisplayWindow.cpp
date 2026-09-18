@@ -7,6 +7,7 @@
 #include "DisplayWindow.h"
 #include "PluginAPI.h"
 #include "FrameBuffer.h"
+#include "FrameSkip.h"
 
 bool DisplayWindow::start()
 {
@@ -58,7 +59,8 @@ void DisplayWindow::reinitGfxContext()
 
 void DisplayWindow::swapBuffers()
 {
-	m_drawer.drawOSD();
+	if (!FrameSkip::skipPresentation())
+		m_drawer.drawOSD();
 	m_drawer.clearStatistics();
 	_swapBuffers();
 	if (!RSP.LLE) {

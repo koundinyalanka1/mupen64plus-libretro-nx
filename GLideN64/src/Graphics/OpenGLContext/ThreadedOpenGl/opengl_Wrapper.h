@@ -20,13 +20,13 @@ namespace opengl {
     public:
 		static void commandLoop();
 	private:
-		static void executeCommand(std::shared_ptr<OpenGlCommand> _command);
+		static void executeCommand(OpenGlCommand * _command);
 
-		static void executePriorityCommand(std::shared_ptr<OpenGlCommand> _command);
+		static void executePriorityCommand(OpenGlCommand * _command);
 
 
-		static BlockingReaderWriterQueue<std::shared_ptr<OpenGlCommand>> m_commandQueue;
-		static BlockingReaderWriterQueue<std::shared_ptr<OpenGlCommand>> m_commandQueueHighPriority;
+		static BlockingReaderWriterQueue<OpenGlCommand *> m_commandQueue;
+		static BlockingReaderWriterQueue<OpenGlCommand *> m_commandQueueHighPriority;
 
 		static bool m_threaded_wrapper;
 		static bool m_shutdown;

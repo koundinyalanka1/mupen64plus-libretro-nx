@@ -276,6 +276,7 @@ bool TexrectDrawer::addRect()
 	m_vecRectCoords.push_back(coords);
 
 	Context::DrawRectParameters rectParams;
+	rectParams.allowFrameSkip = true;
 	rectParams.mode = drawmode::TRIANGLE_STRIP;
 	rectParams.verticesCount = 4;
 	rectParams.vertices = pRect;
@@ -329,6 +330,7 @@ void TexrectDrawer::addBackgroundRect()
 	m_max_lry = std::max(m_max_lry, m_lry);
 
 	Context::DrawRectParameters rectParams;
+	rectParams.allowFrameSkip = true;
 	rectParams.mode = drawmode::TRIANGLE_STRIP;
 	rectParams.verticesCount = 4;
 	rectParams.vertices = pRect;
@@ -434,6 +436,7 @@ bool TexrectDrawer::draw()
 	_setDrawBuffer();
 
 	Context::DrawRectParameters rectParams;
+	rectParams.allowFrameSkip = true;
 	rectParams.mode = drawmode::TRIANGLE_STRIP;
 	rectParams.verticesCount = 4;
 	rectParams.vertices = rect;
@@ -462,6 +465,7 @@ bool TexrectDrawer::draw()
 	gfxContext.enable(enable::BLEND, false);
 	gfxContext.enable(enable::SCISSOR_TEST, false);
 	rectParams.combiner = m_programClear.get();
+	rectParams.allowFrameSkip = false;
 	gfxContext.drawRects(rectParams);
 	gfxContext.enable(enable::SCISSOR_TEST, true);
 

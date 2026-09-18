@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <vector>
 #include "FrameBuffer.h"
+#include "FrameSkip.h"
 #include "DepthBuffer.h"
 #include "N64.h"
 #include "RSP.h"
@@ -1089,6 +1090,14 @@ void FrameBufferList::_renderScreenSizeBuffer()
 	DisplayWindow & wnd = dwnd();
 	GraphicsDrawer & drawer = wnd.getDrawer();
 	FrameBuffer *pBuffer = &m_list.back();
+	if (FrameSkip::skipPresentation()) {
+		wnd.swapBuffers();
+		gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, pBuffer->m_FBO);
+		if (config.frameBufferEmulation.forceDepthBufferClear != 0)
+			drawer.clearDepthBuffer();
+		gDP.changed |= CHANGED_SCISSOR;
+		return;
+	}
 	PostProcessor & postProcessor = PostProcessor::get();
 	FrameBuffer * pFilteredBuffer = pBuffer;
 	for (const auto & f : postProcessor.getPostprocessingList())
@@ -1476,12 +1485,6 @@ void FrameBufferList::OverscanBuffer::draw(u32 _fullHeight, bool _PAL)
 	drawer.copyTexturedRect(blitParams);
 }
 
-#ifdef __LIBRETRO__
-#define FB_SKIP_VIDEO_FRAME (libretro_skip_frame)
-#else
-#define FB_SKIP_VIDEO_FRAME (false)
-#endif
-
 void FrameBufferList::renderBuffer()
 {
 	if (g_debugger.isDebugMode()) {
@@ -1496,8 +1499,10 @@ void FrameBufferList::renderBuffer()
 
 	RdpUpdateResult rdpRes;
 	if (!m_rdpUpdate.update(rdpRes)) {
-		gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
-		gfxContext.clearColorBuffer(0.0f, 0.0f, 0.0f, 0.0f);
+		if (!FrameSkip::skipPresentation()) {
+			gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
+			gfxContext.clearColorBuffer(0.0f, 0.0f, 0.0f, 0.0f);
+		}
 		dwnd().swapBuffers();
 		if (m_pCurrent != nullptr)
 			gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, m_pCurrent->m_FBO);
@@ -1508,6 +1513,24 @@ void FrameBufferList::renderBuffer()
 	if (pBuffer == nullptr)
 		return;
 	pBuffer->m_isMainBuffer = true;
+	if (FrameSkip::skipPresentation()) {
+		// Keep VI tracking, buffer identities and swap pacing, but avoid the
+		// presentation-only postprocessing, MSAA resolve and overscan targets.
+		const u32 srcHeight = rdpRes.vi_width *
+			((rdpRes.vi_vres * rdpRes.vi_y_add + rdpRes.vi_y_start) >> 10) / pBuffer->m_width;
+		const u32 stride = pBuffer->m_width << pBuffer->m_size >> 1;
+		FrameBuffer* next = findBuffer(rdpRes.vi_origin +
+			stride * min(srcHeight - 1, pBuffer->m_height - 1) - 1);
+		if (next != nullptr)
+			next->m_isMainBuffer = true;
+		dwnd().swapBuffers();
+		if (m_pCurrent != nullptr)
+			gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, m_pCurrent->m_FBO);
+		if (config.frameBufferEmulation.forceDepthBufferClear != 0)
+			dwnd().getDrawer().clearDepthBuffer();
+		gDP.changed |= CHANGED_SCISSOR;
+		return;
+	}
 	m_overscan.setInputBuffer(pBuffer);
 
 	DisplayWindow & wnd = dwnd();
@@ -1651,10 +1674,7 @@ void FrameBufferList::renderBuffer()
 	blitParams.readBuffer = readBuffer;
 	blitParams.invertY = config.frameBufferEmulation.enableOverscan == 0;
 
-	/* Everything above is bookkeeping and cheap arithmetic, and is kept so the
-	 * next frame is identical whether or not this one was dropped. Only the
-	 * full-resolution output blits below are skipped. */
-	if (!FB_SKIP_VIDEO_FRAME)
+	if (!FrameSkip::skipPresentation())
 		drawer.copyTexturedRect(blitParams);
 
 	if (pNextBuffer != nullptr) {
@@ -1687,12 +1707,12 @@ void FrameBufferList::renderBuffer()
 		blitParams.mask = blitMask::COLOR_BUFFER;
 		blitParams.readBuffer = readBuffer;
 
-		if (!FB_SKIP_VIDEO_FRAME)
+		if (!FrameSkip::skipPresentation())
 			drawer.copyTexturedRect(blitParams);
 	}
 
 	gfxContext.bindFramebuffer(bufferTarget::READ_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
-	if (!FB_SKIP_VIDEO_FRAME)
+	if (!FrameSkip::skipPresentation())
 		m_overscan.draw(vFullHeight, rdpRes.vi_ispal);
 
 	wnd.swapBuffers();

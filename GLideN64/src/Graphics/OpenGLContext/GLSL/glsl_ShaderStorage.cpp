@@ -135,6 +135,14 @@ bool ShaderStorage::saveShadersStorage(const graphics::Combiners & _combiners) c
 		// Shaders storage is not supported, but we saved combiners keys.
 		return true;
 
+	/* The cache is keyed on these strings. If the driver will not supply them
+	 * there is nothing meaningful to key on, so bail out before truncating any
+	 * existing cache rather than leaving a stub that can never be matched. */
+	const char * strRenderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+	const char * strGLVersion = reinterpret_cast<const char *>(glGetString(GL_VERSION));
+	if (strRenderer == nullptr || strGLVersion == nullptr)
+		return false;
+
 	std::string shadersFileName = getStorageFileName(m_glinfo, "shaders");
 
 #if defined(OS_WINDOWS) && !defined(MINGW)
@@ -152,12 +160,10 @@ bool ShaderStorage::saveShadersStorage(const graphics::Combiners & _combiners) c
 	const u32 configOptionsBitSet = graphics::CombinerProgram::getShaderCombinerOptionsBits();
 	shadersOut.write((char*)&configOptionsBitSet, sizeof(configOptionsBitSet));
 
-	const char * strRenderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
 	u32 len = static_cast<u32>(strlen(strRenderer));
 	shadersOut.write((char*)&len, sizeof(len));
 	shadersOut.write(strRenderer, len);
 
-	const char * strGLVersion = reinterpret_cast<const char *>(glGetString(GL_VERSION));
 	len = static_cast<u32>(strlen(strGLVersion));
 	shadersOut.write((char*)&len, sizeof(len));
 	shadersOut.write(strGLVersion, len);
@@ -208,22 +214,39 @@ CombinerProgramImpl * _readCombinerProgramFromStream(std::istream & _is,
 	std::unique_ptr<CombinerProgramUniformFactory> & _uniformFactory,
 	opengl::CachedUseProgram * _useProgram)
 {
-	int inputs;
+	/* Every field below is read from the shader cache file. The stream has no
+	 * exception mask, so a short read leaves its destination untouched and
+	 * only sets failbit -- each value therefore has to be initialised and the
+	 * stream state checked before any of it is handed to GL. */
+	int inputs = 0;
 	_is.read((char*)&inputs, sizeof(inputs));
-	CombinerInputs cmbInputs(inputs);
 
-	GLenum binaryFormat;
-	GLint  binaryLength;
+	GLenum binaryFormat = 0;
+	GLint  binaryLength = 0;
 	_is.read((char*)&binaryFormat, sizeof(binaryFormat));
 	_is.read((char*)&binaryLength, sizeof(binaryLength));
-	std::vector<char> binary(binaryLength);
+
+	/* binaryLength is signed and unvalidated: a negative or absurd value
+	 * would turn into a huge allocation below. */
+	if (!_is.good() || binaryLength <= 0 ||
+		static_cast<size_t>(binaryLength) > ShaderStorage::maxShaderBinarySize)
+		return nullptr;
+
+	CombinerInputs cmbInputs(inputs);
+
+	std::vector<char> binary(static_cast<size_t>(binaryLength));
 	_is.read(binary.data(), binaryLength);
+	if (!_is.good())
+		return nullptr;
 
 	GLuint program = glCreateProgram();
 	const bool isRect = _cmbKey.isRectKey();
 	glsl::Utils::locateAttributes(program, isRect, cmbInputs.usesTexture());
 	glProgramBinary(program, binaryFormat, binary.data(), binaryLength);
 	if (!glsl::Utils::checkProgramLinkStatus(program, true)) {
+		/* The caller falls back to compiling from the key, so this program
+		 * object would otherwise be leaked -- once per rejected entry. */
+		glDeleteProgram(program);
 		return nullptr;
 	}
 
@@ -322,19 +345,28 @@ bool ShaderStorage::loadShadersStorage(graphics::Combiners & _combiners)
 		if (optionsSet != configOptionsBitSet)
 			return _loadFromCombinerKeys(_combiners);
 
+		/* glGetString may return NULL; the cache is keyed on these strings, so
+		 * without them the only safe answer is to rebuild from combiner keys. */
 		const char * strRenderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
-		u32 len;
-		fin.read((char*)&len, sizeof(len));
-		std::vector<char> strBuf(len);
-		fin.read(strBuf.data(), len);
-		if (strncmp(strRenderer, strBuf.data(), len) != 0)
+		const char * strGLVersion = reinterpret_cast<const char *>(glGetString(GL_VERSION));
+		if (strRenderer == nullptr || strGLVersion == nullptr)
 			return _loadFromCombinerKeys(_combiners);
 
-		const char * strGLVersion = reinterpret_cast<const char *>(glGetString(GL_VERSION));
+		u32 len = 0;
 		fin.read((char*)&len, sizeof(len));
+		if (!fin.good() || len > maxVersionStringLen)
+			return _loadFromCombinerKeys(_combiners);
+		std::vector<char> strBuf(len);
+		fin.read(strBuf.data(), len);
+		if (!fin.good() || strncmp(strRenderer, strBuf.data(), len) != 0)
+			return _loadFromCombinerKeys(_combiners);
+
+		fin.read((char*)&len, sizeof(len));
+		if (!fin.good() || len > maxVersionStringLen)
+			return _loadFromCombinerKeys(_combiners);
 		strBuf.resize(len);
 		fin.read(strBuf.data(), len);
-		if (strncmp(strGLVersion, strBuf.data(), len) != 0)
+		if (!fin.good() || strncmp(strGLVersion, strBuf.data(), len) != 0)
 			return _loadFromCombinerKeys(_combiners);
 
 		displayLoadProgress(L"LOAD COMBINER SHADERS %.1f%%", 0.0f);
@@ -347,7 +379,13 @@ bool ShaderStorage::loadShadersStorage(graphics::Combiners & _combiners)
 			uniformFactory = ::make_unique<CombinerProgramUniformFactoryAccurate>(m_glinfo);
 		}
 
+		/* Entry count also comes from the file. Left unchecked, a corrupt value
+		 * spins this loop billions of times compiling shaders from garbage
+		 * keys, which reads as a hang at startup. */
 		fin.read((char*)&len, sizeof(len));
+		if (!fin.good() || len == 0 || len > maxCombinerEntries)
+			return _loadFromCombinerKeys(_combiners);
+
 		const f32 percent = len / 100.0f;
 		const f32 step = 100.0f / len;
 		f32 progress = 0.0f;
@@ -355,6 +393,8 @@ bool ShaderStorage::loadShadersStorage(graphics::Combiners & _combiners)
 		for (u32 i = 0; i < len; ++i) {
 			CombinerKey cmbKey;
 			cmbKey.read(fin);
+			if (!fin.good())
+				break;
 
 			CombinerProgramImpl * pCombiner = _readCombinerProgramFromStream(fin, cmbKey, uniformFactory, m_useProgram);
 

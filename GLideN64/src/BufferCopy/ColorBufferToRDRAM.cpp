@@ -6,6 +6,7 @@
 
 #include <FrameBuffer.h>
 #include <FrameBufferInfo.h>
+#include <FrameSkip.h>
 #include <Config.h>
 #include <N64.h>
 #include <VI.h>
@@ -235,11 +236,15 @@ void ColorBufferToRDRAM::_copy(u32 _startAddress, u32 _endAddress, bool _sync)
 
 void ColorBufferToRDRAM::copyToRDRAM(u32 _address, bool _sync)
 {
+	// Reject optional work before allocating the staging texture, resolving
+	// MSAA, or downscaling/blitting. Explicit CPU reads use the sync path.
+	if (FrameSkip::skipColorReadback(_sync))
+		return;
+	if (config.frameBufferEmulation.copyToRDRAM == Config::CopyToRDRAM::ctDisable && config.frameBufferEmulation.fbInfoDisabled != 0)
+		return;
 	if (!isMemoryWritable(RDRAM + _address, gDP.colorImage.width << gDP.colorImage.size >> 1))
 		return;
 	if (!_prepareCopy(_address))
-		return;
-	if (config.frameBufferEmulation.copyToRDRAM == Config::CopyToRDRAM::ctDisable && config.frameBufferEmulation.fbInfoDisabled != 0)
 		return;
 
 	const u32 numBytes = (m_pCurFrameBuffer->m_width*m_pCurFrameBuffer->m_height) << m_pCurFrameBuffer->m_size >> 1;

@@ -260,6 +260,7 @@ SOURCES_C += $(LIBRETRO_DIR)/libretro.c \
 
 
 SOURCES_CXX   += \
+	$(LIBRETRO_DIR)/frame_skip.cpp \
 	$(VIDEODIR_GLIDEN64)/src/Combiner.cpp                                                         \
     $(VIDEODIR_GLIDEN64)/src/CombinerKey.cpp                                                      \
     $(VIDEODIR_GLIDEN64)/src/CommonPluginAPI.cpp                                                  \

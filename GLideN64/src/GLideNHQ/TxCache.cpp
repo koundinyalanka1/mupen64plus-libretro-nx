@@ -707,6 +707,15 @@ bool TxFileStorage::readData(GHQTexInfo & info)
 	if (_gzdest0 == nullptr)
 		return false;
 
+	/* dataSize comes straight out of the cache file. Texture cache files are
+	 * routinely downloaded and shared, so a bogus length here must not be
+	 * allowed to write past the end of the destination buffer. */
+	if (dataSize > _gzdestLen) {
+		DBG_INFO(80, wst("Error: cached texture size %u exceeds buffer %u!\n"),
+			dataSize, _gzdestLen);
+		return false;
+	}
+
 	_infile.read((char*)_gzdest0, dataSize);
 	if (!_infile.good())
 		return false;

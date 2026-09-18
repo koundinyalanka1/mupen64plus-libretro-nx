@@ -1166,6 +1166,7 @@ void GraphicsDrawer::drawRect(int _ulx, int _uly, int _lrx, int _lry)
 	Context::DrawRectParameters rectParams;
 	rectParams.mode = drawmode::TRIANGLE_STRIP;
 	rectParams.texrect = false;
+	rectParams.allowFrameSkip = true;
 	rectParams.verticesCount = 4;
 	rectParams.vertices = m_rect;
 	rectParams.combiner = currentCombiner();
@@ -1525,6 +1526,7 @@ void GraphicsDrawer::drawTexturedRect(const TexturedRectParams & _params)
 
 	_updateViewport(_params.pBuffer);
 	Context::DrawRectParameters rectParams;
+	rectParams.allowFrameSkip = _params.texrectCmd;
 	rectParams.mode = drawmode::TRIANGLE_STRIP;
 	rectParams.verticesCount = 4;
 	rectParams.vertices = m_rect;

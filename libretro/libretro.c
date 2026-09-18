@@ -25,6 +25,7 @@
 
 #include "libretro.h"
 #include "libretro_private.h"
+#include "frame_skip.h"
 #include "libretro_core_options.h"
 
 #include "GLideN64_libretro.h"
@@ -146,10 +147,10 @@ bool libretro_swap_buffer;
 #define LIBRETRO_AV_ENABLE_AUDIO       (1 << 1)
 #define LIBRETRO_AV_HARD_DISABLE_AUDIO (1 << 3)
 
-/* Set for frames whose video the frontend has asked us not to produce. Read by
- * GLideN64's VI composition pass to skip the screen blit, and here to present a
- * duped frame instead of a real one. */
+/* Frontend-thread presentation decision. GLideN64 receives an atomic snapshot
+ * through libretro_set_frame_skip(), including the selected work policy. */
 bool libretro_skip_frame = false;
+static unsigned frame_skip_mode = LIBRETRO_SKIP_READBACK;
 /* Honoured by the libretro audio backend before it pushes a batch. */
 bool libretro_audio_enabled = true;
 
@@ -1053,6 +1054,17 @@ static void update_variables(bool startup)
           if (depth >= 1 && depth <= 3)
              ThreadedRendererQueueDepth = depth;
        }
+
+       var.key = CORE_NAME "-FrameSkipMode";
+       var.value = NULL;
+       frame_skip_mode = LIBRETRO_SKIP_READBACK;
+       if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+       {
+          if (!strcmp(var.value, "Presentation"))
+             frame_skip_mode = LIBRETRO_SKIP_PRESENTATION;
+          else if (!strcmp(var.value, "Rendering"))
+             frame_skip_mode = LIBRETRO_SKIP_RENDERING;
+       }
 	    
        if(current_rdp_type == RDP_PLUGIN_GLIDEN64 && EnableThreadedRenderer)
        {
@@ -1912,6 +1924,10 @@ bool retro_load_game(const struct retro_game_info *game)
     char* gamePath;
     char* newPath;
 
+    libretro_skip_frame = false;
+    libretro_set_frame_skip(false, frame_skip_mode);
+    libretro_set_presented_frame_skip(0);
+
     /* Re-arm the boot-time audio padding for the newly loaded ROM. */
     audio_stream_started = false;
 
@@ -2103,6 +2119,8 @@ void retro_run (void)
 
     libretro_audio_frames_pushed = 0;
 
+    libretro_set_frame_skip(libretro_skip_frame, frame_skip_mode);
+
     if(current_rdp_type == RDP_PLUGIN_GLIDEN64)
     {
        if(EnableThreadedRenderer)
@@ -2153,7 +2171,16 @@ void retro_run (void)
 
     if (libretro_swap_buffer)
     {
-       if (libretro_skip_frame)
+       /* GLideN64 may run its producer ahead of presentation, so the frame
+        * being presented here carries the decision it was produced under.
+        * The other RDP plugins present the frame they just produced, so for
+        * them the current decision is the right one. */
+       const bool skip_presentation =
+          (current_rdp_type == RDP_PLUGIN_GLIDEN64)
+             ? (libretro_get_presented_frame_skip() & LIBRETRO_SKIP_VIDEO) != 0
+             : libretro_skip_frame;
+
+       if (skip_presentation)
        {
           /* Frontend discards this frame's video; hand it a duped frame so
            * pacing is unchanged and it can catch up. */
@@ -2188,6 +2215,8 @@ void retro_run (void)
 
 void retro_reset (void)
 {
+    libretro_set_frame_skip(false, frame_skip_mode);
+    libretro_set_presented_frame_skip(0);
     CoreDoCommand(M64CMD_RESET, 0, (void*)0);
 }
 
@@ -2226,6 +2255,9 @@ bool retro_serialize(void *data, size_t size)
    if (initializing)
       return false;
 
+   libretro_set_frame_skip(false, frame_skip_mode);
+   libretro_set_presented_frame_skip(0);
+
    retro_savestate_complete = false;
    retro_savestate_result = 0;
 
@@ -2258,6 +2290,9 @@ bool retro_unserialize(const void *data, size_t size)
 {
    if (initializing)
       return false;
+
+   libretro_set_frame_skip(false, frame_skip_mode);
+   libretro_set_presented_frame_skip(0);
 
    retro_savestate_complete = false;
    retro_savestate_result = 0;

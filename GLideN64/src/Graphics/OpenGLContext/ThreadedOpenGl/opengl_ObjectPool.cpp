@@ -9,12 +9,12 @@ namespace opengl {
 
 	bool PoolObject::isInUse()
 	{
-		return m_inUse;
+		return m_inUse.load(std::memory_order_acquire);
 	}
 
 	void PoolObject::setInUse(bool _inUse)
 	{
-		m_inUse = _inUse;
+		m_inUse.store(_inUse, std::memory_order_release);
 	}
 
 	int PoolObject::getPoolId()
@@ -50,7 +50,7 @@ namespace opengl {
 		return static_cast<int>(m_objectPool.size() - 1);
 	}
 
-	std::shared_ptr<PoolObject> OpenGlCommandPool::getAvailableObject(int _poolId)
+	PoolObject * OpenGlCommandPool::getAvailableObject(int _poolId)
 	{
 		auto &currentPool = m_objectPool[_poolId];
 		auto &currentIndex = m_objectPoolIndex[_poolId];
@@ -65,7 +65,7 @@ namespace opengl {
 				currentIndex = 0;
 			}
 
-			return currentPool[objectId];
+			return currentPool[objectId].get();
 
 		} else {
 			bool found = false;
@@ -89,7 +89,7 @@ namespace opengl {
 				}
 				--index;
 
-				return currentPool[index];
+				return currentPool[index].get();
 			} else {
 				currentIndex = 0;
 				return nullptr;

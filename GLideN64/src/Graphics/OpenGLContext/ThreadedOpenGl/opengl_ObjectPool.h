@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -23,7 +24,10 @@ namespace opengl {
 		void setObjectId(int _objectId);
 	private:
 
-		bool m_inUse;
+		/* Cleared by the render thread as it finishes a command, read by the
+		 * producer looking for a free object. Previously a plain bool that
+		 * relied on the command mutex for visibility. */
+		std::atomic<bool> m_inUse;
 		int m_poolId;
 		int m_objectId;
 	};
@@ -35,7 +39,10 @@ namespace opengl {
 
 		int getNextAvailablePool();
 
-		std::shared_ptr<PoolObject> getAvailableObject(int _poolId);
+		/* Borrowed pointer. The pool's vector owns every object and never
+		 * removes one, so these stay valid for the process lifetime;
+		 * recycling is governed by setInUse(), not by ownership. */
+		PoolObject * getAvailableObject(int _poolId);
 
 		void addObjectToPool(int _poolId, std::shared_ptr<PoolObject> _object);
 

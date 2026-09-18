@@ -28,11 +28,11 @@ namespace opengl {
 	std::map<std::string, FunctionWrapper::FunctionProfilingData> FunctionWrapper::m_functionProfiling;
 	std::chrono::time_point<std::chrono::high_resolution_clock> FunctionWrapper::m_lastProfilingOutput;
 #endif
-	BlockingReaderWriterQueue<std::shared_ptr<OpenGlCommand>> FunctionWrapper::m_commandQueue;
-	BlockingReaderWriterQueue<std::shared_ptr<OpenGlCommand>> FunctionWrapper::m_commandQueueHighPriority;
+	BlockingReaderWriterQueue<OpenGlCommand *> FunctionWrapper::m_commandQueue;
+	BlockingReaderWriterQueue<OpenGlCommand *> FunctionWrapper::m_commandQueueHighPriority;
 
 
-	void FunctionWrapper::executeCommand(std::shared_ptr<OpenGlCommand> _command)
+	void FunctionWrapper::executeCommand(OpenGlCommand * _command)
 	{
 #if !defined(GL_DEBUG)
 		m_commandQueue.enqueue(_command);
@@ -51,7 +51,7 @@ namespace opengl {
 #endif
 	}
 
-	void FunctionWrapper::executePriorityCommand(std::shared_ptr<OpenGlCommand> _command)
+	void FunctionWrapper::executePriorityCommand(OpenGlCommand * _command)
 	{
 #if !defined(GL_DEBUG)
 		m_commandQueueHighPriority.enqueue(_command);
@@ -77,7 +77,7 @@ namespace opengl {
 		threaded_gl_safe_shutdown = false;
         
 		while (!timeToShutdown) {
-			std::shared_ptr<OpenGlCommand> command;
+			OpenGlCommand * command = nullptr;
 
 			if (m_commandQueueHighPriority.peek() != nullptr) {
 				while (m_commandQueueHighPriority.try_dequeue(command)) {
@@ -1535,10 +1535,20 @@ namespace opengl {
 	{
 		++m_swapBuffersQueued;
 
+		/* Snapshot the skip decision here, on the producer, while it still
+		 * describes the frame being swapped. This command is not synced, so
+		 * the producer may already be several frames ahead by the time the
+		 * frontend presents this one. */
+#ifdef __LIBRETRO__
+		const unsigned frameSkipFlags = libretro_get_frame_skip_flags();
+#else
+		const unsigned frameSkipFlags = 0;
+#endif
+
 		if (m_threaded_wrapper)
-			executeCommand(CoreVideoGLSwapBuffersCommand::get([]{ReduceSwapBuffersQueued();}));
+			executeCommand(CoreVideoGLSwapBuffersCommand::get([]{ReduceSwapBuffersQueued();}, frameSkipFlags));
 		else
-			CoreVideoGLSwapBuffersCommand::get([]{ReduceSwapBuffersQueued();})->performCommandSingleThreaded();
+			CoreVideoGLSwapBuffersCommand::get([]{ReduceSwapBuffersQueued();}, frameSkipFlags)->performCommandSingleThreaded();
 	}
 #else
 	bool FunctionWrapper::windowsStart()

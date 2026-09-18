@@ -126,7 +126,15 @@ void APIENTRY on_gl_error(GLenum source,
 }
 
 void GLInfo::init() {
+	/* glGetString is allowed to return NULL. Feeding that to strstr/std::string
+	 * below is undefined behaviour, so fall back to an empty string: every
+	 * capability check then takes its conservative branch. */
+	static const char * const strUnknown = "";
 	const char * strDriverVersion = reinterpret_cast<const char *>(glGetString(GL_VERSION));
+	if (strDriverVersion == nullptr) {
+		LOG(LOG_WARNING, "Could not query GL_VERSION on this device");
+		strDriverVersion = strUnknown;
+	}
 	isGLESX = strstr(strDriverVersion, "OpenGL ES") != nullptr;
 	isGLES2 = strstr(strDriverVersion, "OpenGL ES 2") != nullptr;
 	if (isGLES2) {
@@ -149,6 +157,10 @@ void GLInfo::init() {
 
 	LOG(LOG_VERBOSE, "OpenGL vendor: %s", glGetString(GL_VENDOR));
 	const char * strRenderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+	if (strRenderer == nullptr) {
+		LOG(LOG_WARNING, "Could not query GL_RENDERER on this device");
+		strRenderer = strUnknown;
+	}
 	renderer = Renderer::Other;
 
 	bool isAnyAdreno = strstr(strRenderer, "Adreno") != nullptr;
@@ -322,8 +334,11 @@ void GLInfo::init() {
 	eglImage = (Utils::isEGLExtensionSupported("EGL_KHR_image_base") || Utils::isEGLExtensionSupported("EGL_KHR_image")) &&
 		Utils::isEGLExtensionSupported("EGL_ANDROID_image_native_buffer") &&
 		IS_GL_FUNCTION_VALID(EGLImageTargetTexture2DOES) &&
-	        ( (isGLES2 && GraphicBufferWrapper::isSupportAvailable()) || (isGLESX && GraphicBufferWrapper::isPublicSupportAvailable()) ) &&
-		    (renderer != Renderer::PowerVR) && (renderer != Renderer::Tegra) && (renderer != Renderer::Angle);
+	        ( (isGLES2 && GraphicBufferWrapper::isSupportAvailable()) || (isGLESX && GraphicBufferWrapper::isPublicSupportAvailable()) );
+	/* No vendor blocklist here on purpose. Whether an EGLImage-backed external
+	 * texture is usable as a colour attachment is measured directly by
+	 * _probeEglImageColorAttachment() below, so drivers that work are not
+	 * excluded by name and drivers that do not fall back on their own. */
 #endif
 
 	// Reset this on every context initialization, including driver switches.
