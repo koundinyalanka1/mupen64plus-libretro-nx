@@ -32,12 +32,10 @@ public:
 
 private:
 
-	static int getApiLevel();
-
-	bool m_private;
-	GraphicBuffer* m_privateGraphicBuffer;
-	AHardwareBuffer* m_publicGraphicBuffer;
-	unsigned int m_stride;
+	bool m_private = false;
+	GraphicBuffer* m_privateGraphicBuffer = nullptr;
+	AHardwareBuffer* m_publicGraphicBuffer = nullptr;
+	unsigned int m_stride = 0;
 
 };
 

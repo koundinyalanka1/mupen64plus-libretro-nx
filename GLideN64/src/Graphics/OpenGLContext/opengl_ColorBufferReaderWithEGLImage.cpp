@@ -20,11 +20,12 @@ ColorBufferReaderWithEGLImage::ColorBufferReaderWithEGLImage(CachedTexture *_pTe
 
 ColorBufferReaderWithEGLImage::~ColorBufferReaderWithEGLImage()
 {
-	m_hardwareBuffer.release();
+	cleanUp();
 
 	if (m_image != nullptr) {
 		eglDestroyImageKHR(eglGetDisplay(EGL_DEFAULT_DISPLAY), m_image);
 	}
+	m_hardwareBuffer.release();
 }
 
 void ColorBufferReaderWithEGLImage::_initBuffers()
@@ -84,8 +85,10 @@ const u8 * ColorBufferReaderWithEGLImage::_readPixels(const ReadColorBufferParam
 
 	void* gpuData = nullptr;
 
-	if (!_params.sync) {
-		m_hardwareBuffer.lock(AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, &gpuData);
+	// Hardware buffers hold RGBA8; monochrome reads still need GL conversion.
+	if (!_params.sync && _params.colorFormat == colorFormat::RGBA && _params.colorType == datatype::UNSIGNED_BYTE) {
+		if (m_hardwareBuffer.lock(AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, &gpuData) != 0)
+			return nullptr;
 		m_bufferLocked = true;
 		_heightOffset = static_cast<u32>(_params.y0);
 		_stride = m_hardwareBuffer.getStride();

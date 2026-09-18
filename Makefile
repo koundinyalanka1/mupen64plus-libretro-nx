@@ -1,4 +1,5 @@
-DEBUG = 0
+# All core builds use release settings, including frontend debug builds.
+override DEBUG := 0
 FORCE_GLES ?= 0
 FORCE_GLES3 ?= 0
 LLE ?= 0
@@ -537,7 +538,6 @@ else ifneq (,$(findstring android,$(platform)))
       GLES = 1
       TARGET := $(TARGET_NAME)_gles2_libretro_android.so
    endif
-   CPUFLAGS += -DANDROID -DEGL_EGLEXT_PROTOTYPES
    COREFLAGS += -DOS_LINUX
    ASFLAGS = -f elf -d ELF_TYPE
 # emscripten
@@ -635,6 +635,19 @@ ifeq ($(STATIC_LINKING), 1)
    endif
 endif
 
+# Some Android frontends use a generic CPU platform (e.g. arm64_cortex_a53_gles3).
+# Detect the compiler target too, before Makefile.common selects Android sources.
+ifeq ($(ANDROID),)
+   ifneq (,$(findstring android,$(shell $(CC) -dumpmachine 2>/dev/null)))
+      ANDROID := 1
+   endif
+endif
+ifeq ($(ANDROID),1)
+   COREFLAGS += -DOS_ANDROID
+   CPUFLAGS += -DANDROID -DEGL_EGLEXT_PROTOTYPES
+   LDFLAGS += -llog -ldl
+endif
+
 include Makefile.common
 
 ifeq ($(HAVE_NEON), 1)
@@ -650,16 +663,11 @@ endif
 
 COREFLAGS += -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -D__LIBRETRO__ -DUSE_FILE32API -DM64P_PLUGIN_API -DM64P_CORE_PROTOTYPES -D_ENDUSER_RELEASE -DSINC_LOWER_QUALITY -DTXFILTER_LIB -D__VEC4_OPT -DMUPENPLUSAPI
 
-ifeq ($(DEBUG), 1)
-   CPUOPTS += -O0 -g
-   CPUOPTS += -DOPENGL_DEBUG
-else
-   CPUOPTS += -DNDEBUG -fsigned-char -ffast-math -fno-strict-aliasing -fomit-frame-pointer -fvisibility=hidden
+CPUOPTS += -DNDEBUG -fsigned-char -ffast-math -fno-strict-aliasing -fomit-frame-pointer -fvisibility=hidden
 ifneq ($(platform), libnx)
    CPUOPTS := -O3 $(CPUOPTS)
 endif
-   CXXFLAGS += -fvisibility-inlines-hidden
-endif
+CXXFLAGS += -fvisibility-inlines-hidden
 
 # Use -fcommon
 CPUOPTS += -fcommon
@@ -682,7 +690,7 @@ OBJECTS     += $(SOURCES_CXX:.cpp=.o) $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o) $(
 CXXFLAGS    += $(CPUOPTS) $(COREFLAGS) $(INCFLAGS) $(PLATCFLAGS) $(fpic) $(CPUFLAGS) $(GLFLAGS) $(DYNAFLAGS)
 CFLAGS      += $(CPUOPTS) $(COREFLAGS) $(INCFLAGS) $(PLATCFLAGS) $(fpic) $(CPUFLAGS) $(GLFLAGS) $(DYNAFLAGS)
 
-ifeq (,$(findstring android,$(platform)))
+ifneq ($(ANDROID),1)
    LDFLAGS    += -lpthread
 endif
 
@@ -721,6 +729,9 @@ $(RSPDIR_PARALLEL)/lightning/lib/lightning.o: $(RSPDIR_PARALLEL)/lightning/lib/l
 
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+# Platform defines affect every translation unit, even when its source is unchanged.
+$(OBJECTS): Makefile Makefile.common
 
 clean:
 	find $(ROOT_DIR) -name "*.o" -type f -delete

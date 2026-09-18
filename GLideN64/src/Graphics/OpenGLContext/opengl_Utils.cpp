@@ -137,8 +137,8 @@ bool Utils::isGLError()
 
 bool Utils::isFramebufferError()
 {
-#ifdef GL_DEBUG
 	GLenum e = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+#ifdef GL_DEBUG
 	switch (e) {
 		//		case GL_FRAMEBUFFER_UNDEFINED:
 		//			printf("FBO Undefined\n");
@@ -168,8 +168,6 @@ bool Utils::isFramebufferError()
 		LOG(LOG_ERROR, "[GlideN64]: FBO Problem?");
 	}
 
-	return e != GL_FRAMEBUFFER_COMPLETE;
-#else
-	return false;
 #endif
+	return e != GL_FRAMEBUFFER_COMPLETE;
 }

@@ -615,17 +615,17 @@ void FrameBuffer::_initColorFBTexture(int _width)
 	}
 
 	// check if everything is OK
-	assert(!gfxContext.isFramebufferError());
+	const bool framebufferError = gfxContext.isFramebufferError();
 #ifdef __LIBRETRO__
-	/* The assert above is compiled out of release builds, which is how an
-	 * incomplete colour-buffer FBO can be created every frame without anyone
-	 * noticing. Report it for real, once per affected buffer. */
-	if (gfxContext.isFramebufferError() && log_cb)
+	if (framebufferError && log_cb)
 		log_cb(RETRO_LOG_WARN,
-			"GLideN64: colour buffer FBO for %dx%d is incomplete; "
+			"GLideN64: colour buffer FBO %u, texture %u, target 0x%x for %ux%u is incomplete; "
 			"its blit and readback will be rejected\n",
+			(unsigned)m_ColorBufferFBO, (unsigned)m_pColorBufferTexture->name,
+			(unsigned)(Context::EglImageFramebuffer ? textureTarget::TEXTURE_EXTERNAL : textureTarget::TEXTURE_2D),
 			m_pColorBufferTexture->width, m_pColorBufferTexture->height);
 #endif
+	assert(!framebufferError);
 
 	gfxContext.bindFramebuffer(graphics::bufferTarget::DRAW_FRAMEBUFFER, graphics::ObjectHandle::defaultFramebuffer);
 }

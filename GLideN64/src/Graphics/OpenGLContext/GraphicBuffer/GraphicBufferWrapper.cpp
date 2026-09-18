@@ -4,29 +4,24 @@
 #include <Graphics/OpenGLContext/GraphicBuffer/PublicApi/android_hardware_buffer_compat.h>
 #include "../GLFunctions.h"
 
-#include <dlfcn.h>
-#include <sys/system_properties.h>
-#include <sstream>
+#include <cerrno>
 
 namespace opengl {
 
 
 GraphicBufferWrapper::GraphicBufferWrapper() {
-	m_private = false;
-
 	if (!isSupportAvailable()) {
 		return;
 	}
 
-	if (getApiLevel() <= 23) {
+	if (AndroidHardwareBufferCompat::GetApiLevel() <= 23) {
 		m_private = true;
 		m_privateGraphicBuffer = new GraphicBuffer();
 	}
-
-	m_stride = 0;
 }
 
 GraphicBufferWrapper::~GraphicBufferWrapper() {
+	release();
 	if (m_private) {
 		delete m_privateGraphicBuffer;
 	}
@@ -34,14 +29,15 @@ GraphicBufferWrapper::~GraphicBufferWrapper() {
 
 bool GraphicBufferWrapper::isSupportAvailable() {
 
-	int apiLevel = getApiLevel();
-	return apiLevel >= 26 || apiLevel <= 23;
+	const int apiLevel = AndroidHardwareBufferCompat::GetApiLevel();
+	return isPublicSupportAvailable() ||
+		(apiLevel > 0 && apiLevel <= 23 && GraphicBuffer::hasBufferMapper());
 }
 
 bool GraphicBufferWrapper::isPublicSupportAvailable() {
 
-	int apiLevel = getApiLevel();
-	return apiLevel >= 26;
+	return AndroidHardwareBufferCompat::IsSupportAvailable() &&
+		IS_GL_FUNCTION_VALID(GetNativeClientBufferANDROID);
 }
 
 bool GraphicBufferWrapper::allocate(const AHardwareBuffer_Desc *desc) {
@@ -49,7 +45,16 @@ bool GraphicBufferWrapper::allocate(const AHardwareBuffer_Desc *desc) {
 	if (m_private) {
 		return m_privateGraphicBuffer->reallocate(desc->width, desc->height, desc->format, desc->usage);
 	} else {
-		return AndroidHardwareBufferCompat::GetInstance().Allocate(desc, &m_publicGraphicBuffer) == 0;
+		if (!isPublicSupportAvailable())
+			return false;
+		release();
+		auto& api = AndroidHardwareBufferCompat::GetInstance();
+		if (api.Allocate(desc, &m_publicGraphicBuffer) != 0)
+			return false;
+		AHardwareBuffer_Desc allocatedDesc{};
+		api.Describe(m_publicGraphicBuffer, &allocatedDesc);
+		m_stride = allocatedDesc.stride;
+		return true;
 	}
 }
 
@@ -57,8 +62,10 @@ int GraphicBufferWrapper::lock(uint64_t usage, void **out_virtual_address) {
 
 	int returnValue = 0;
 	if (m_private) {
-		returnValue = m_privateGraphicBuffer->lock(usage, out_virtual_address);
+		returnValue = m_privateGraphicBuffer->lock(usage, out_virtual_address) ? 0 : -EINVAL;
 	} else {
+		if (m_publicGraphicBuffer == nullptr)
+			return -EINVAL;
 		returnValue = AndroidHardwareBufferCompat::GetInstance().Lock(m_publicGraphicBuffer, usage, -1, nullptr, out_virtual_address);
 	};
 
@@ -66,8 +73,10 @@ int GraphicBufferWrapper::lock(uint64_t usage, void **out_virtual_address) {
 }
 
 void GraphicBufferWrapper::release() {
-	if (!m_private) {
+	if (m_publicGraphicBuffer != nullptr) {
 		AndroidHardwareBufferCompat::GetInstance().Release(m_publicGraphicBuffer);
+		m_publicGraphicBuffer = nullptr;
+		m_stride = 0;
 	}
 }
 
@@ -75,7 +84,7 @@ void GraphicBufferWrapper::unlock() {
 
 	if (m_private) {
 		m_privateGraphicBuffer->unlock();
-	} else {
+	} else if (m_publicGraphicBuffer != nullptr) {
 		AndroidHardwareBufferCompat::GetInstance().Unlock(m_publicGraphicBuffer, nullptr);
 	}
 
@@ -85,7 +94,7 @@ EGLClientBuffer GraphicBufferWrapper::getClientBuffer() {
 	EGLClientBuffer clientBuffer = nullptr;
 	if (m_private) {
 		clientBuffer = (EGLClientBuffer)m_privateGraphicBuffer->getNativeBuffer();
-	} else {
+	} else if (m_publicGraphicBuffer != nullptr) {
 		clientBuffer = eglGetNativeClientBufferANDROID(m_publicGraphicBuffer);
 	}
 
@@ -96,29 +105,8 @@ unsigned GraphicBufferWrapper::getStride() const {
 	if (m_private) {
 		return m_privateGraphicBuffer->getStride();
 	} else {
-		AHardwareBuffer_Desc bufferInfo;
-		AndroidHardwareBufferCompat::GetInstance().Describe(m_publicGraphicBuffer, &bufferInfo);
-		return bufferInfo.stride;
+		return m_stride;
 	}
-}
-
-int GraphicBufferWrapper::getApiLevel()
-{
-	static bool apiLevelChecked = false;
-	static int apiLevel = 0;
-
-	if (!apiLevelChecked)
-	{
-		char *androidApiLevel = new char[PROP_VALUE_MAX];
-
-		int valid = __system_property_get("ro.build.version.sdk", androidApiLevel);
-
-		if (valid > 0) {
-			std::stringstream convert(androidApiLevel);
-			convert >> apiLevel;
-		}
-	}
-	return apiLevel;
 }
 
 }

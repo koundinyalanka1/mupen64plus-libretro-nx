@@ -15,6 +15,9 @@
 
 #if defined(EGL) && defined(OS_ANDROID)
 #include <libretro_private.h>
+#ifndef GL_TEXTURE_BINDING_EXTERNAL_OES
+#define GL_TEXTURE_BINDING_EXTERNAL_OES 0x8D67
+#endif
 #endif
 
 using namespace opengl;
@@ -60,6 +63,9 @@ static bool _probeEglImageColorAttachment()
 	}
 
 	GLint prevFramebuffer = 0;
+	GLint prevReadFramebuffer = 0;
+	GLint prevTexture = 0;
+	const GLenum target = GLenum(graphics::textureTarget::TEXTURE_EXTERNAL);
 	GLuint texture = 0;
 	GLuint framebuffer = 0;
 	GLenum bindError = GL_NO_ERROR;
@@ -67,27 +73,30 @@ static bool _probeEglImageColorAttachment()
 	bool usable = false;
 
 	glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFramebuffer);
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prevReadFramebuffer);
+	glGetIntegerv(target == GL_TEXTURE_2D ? GL_TEXTURE_BINDING_2D : GL_TEXTURE_BINDING_EXTERNAL_OES, &prevTexture);
 
 	while (glGetError() != GL_NO_ERROR);
 
 	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
-	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, image);
+	glBindTexture(target, texture);
+	glEGLImageTargetTexture2DOES(target, image);
 	bindError = glGetError();
 
 	if (bindError == GL_NO_ERROR) {
 		glGenFramebuffers(1, &framebuffer);
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-			GL_TEXTURE_EXTERNAL_OES, texture, 0);
+			target, texture, 0);
 		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 		usable = (status == GL_FRAMEBUFFER_COMPLETE);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(prevFramebuffer));
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<GLuint>(prevReadFramebuffer));
 	if (framebuffer != 0)
 		glDeleteFramebuffers(1, &framebuffer);
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0);
+	glBindTexture(target, static_cast<GLuint>(prevTexture));
 	glDeleteTextures(1, &texture);
 	eglDestroyImageKHR(display, image);
 	buffer.release();
@@ -140,6 +149,7 @@ void GLInfo::init() {
 
 	LOG(LOG_VERBOSE, "OpenGL vendor: %s", glGetString(GL_VENDOR));
 	const char * strRenderer = reinterpret_cast<const char *>(glGetString(GL_RENDERER));
+	renderer = Renderer::Other;
 
 	bool isAnyAdreno = strstr(strRenderer, "Adreno") != nullptr;
 	bool isFreedreno = strstr(strRenderer, "FD") != nullptr;  // freedreno uses "FDxxx" naming
@@ -293,7 +303,9 @@ void GLInfo::init() {
 
 	ext_fetch = Utils::isExtensionSupported(*this, "GL_EXT_shader_framebuffer_fetch") && (!isGLESX || ext_draw_buffers_indexed);
 	n64DepthWithFbFetch = ext_fetch && !imageTexturesInterlock;
-	eglImage = (Utils::isEGLExtensionSupported("EGL_KHR_image_base") || Utils::isEGLExtensionSupported("EGL_KHR_image"));
+	// The only EGLImage reader is compiled for Android with EGL support.
+	eglImage = false;
+	eglImageFramebuffer = false;
 	ext_fetch_arm =  Utils::isExtensionSupported(*this, "GL_ARM_shader_framebuffer_fetch") && !ext_fetch;
 
 	// Disable broken extensions if dual_source_blending is disabled (which is currently buggy with some settings)
@@ -306,15 +318,16 @@ void GLInfo::init() {
 
 	anisotropic_filtering = Utils::isExtensionSupported(*this, "GL_EXT_texture_filter_anisotropic");
 
-#ifdef OS_ANDROID
-	eglImage = eglImage &&
+#if defined(EGL) && defined(OS_ANDROID)
+	eglImage = (Utils::isEGLExtensionSupported("EGL_KHR_image_base") || Utils::isEGLExtensionSupported("EGL_KHR_image")) &&
+		Utils::isEGLExtensionSupported("EGL_ANDROID_image_native_buffer") &&
+		IS_GL_FUNCTION_VALID(EGLImageTargetTexture2DOES) &&
 	        ( (isGLES2 && GraphicBufferWrapper::isSupportAvailable()) || (isGLESX && GraphicBufferWrapper::isPublicSupportAvailable()) ) &&
 		    (renderer != Renderer::PowerVR) && (renderer != Renderer::Tegra) && (renderer != Renderer::Angle);
 #endif
 
-	if (renderer == Renderer::Intel) {
-		graphics::textureTarget::TEXTURE_EXTERNAL = GL_TEXTURE_2D;
-	}
+	// Reset this on every context initialization, including driver switches.
+	graphics::textureTarget::TEXTURE_EXTERNAL = renderer == Renderer::Intel ? GL_TEXTURE_2D : GL_TEXTURE_EXTERNAL_OES;
 
 	eglImageFramebuffer = eglImage && !isGLES2;
 

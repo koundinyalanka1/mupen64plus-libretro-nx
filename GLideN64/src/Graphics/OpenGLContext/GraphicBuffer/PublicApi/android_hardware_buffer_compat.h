@@ -39,6 +39,7 @@ public:
 	AndroidHardwareBufferCompat& operator= (const AndroidHardwareBufferCompat&) = delete;
 
 	static bool IsSupportAvailable();
+	static int GetApiLevel();
 	static AndroidHardwareBufferCompat& GetInstance();
 
 	int Allocate(const AHardwareBuffer_Desc* desc, AHardwareBuffer** outBuffer);
@@ -57,16 +58,17 @@ public:
 private:
 
 	AndroidHardwareBufferCompat();
-	~AndroidHardwareBufferCompat() = default;
+	~AndroidHardwareBufferCompat();
+	void* library_ = nullptr;
 
-	PFAHardwareBuffer_allocate allocate_;
-	PFAHardwareBuffer_acquire acquire_;
-	PFAHardwareBuffer_describe describe_;
-	PFAHardwareBuffer_lock lock_;
-	PFAHardwareBuffer_recvHandleFromUnixSocket recv_handle_;
-	PFAHardwareBuffer_release release_;
-	PFAHardwareBuffer_sendHandleToUnixSocket send_handle_;
-	PFAHardwareBuffer_unlock unlock_;
+	PFAHardwareBuffer_allocate allocate_ = nullptr;
+	PFAHardwareBuffer_acquire acquire_ = nullptr;
+	PFAHardwareBuffer_describe describe_ = nullptr;
+	PFAHardwareBuffer_lock lock_ = nullptr;
+	PFAHardwareBuffer_recvHandleFromUnixSocket recv_handle_ = nullptr;
+	PFAHardwareBuffer_release release_ = nullptr;
+	PFAHardwareBuffer_sendHandleToUnixSocket send_handle_ = nullptr;
+	PFAHardwareBuffer_unlock unlock_ = nullptr;
 
 };
 

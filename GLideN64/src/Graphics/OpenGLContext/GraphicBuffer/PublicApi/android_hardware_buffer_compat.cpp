@@ -4,74 +4,79 @@
 
 #include <dlfcn.h>
 #include <sys/system_properties.h>
-#include <sstream>
+#include <cstdlib>
 
 namespace opengl {
 
 
 AndroidHardwareBufferCompat::AndroidHardwareBufferCompat() {
-    DCHECK(IsSupportAvailable());
-
     // TODO(klausw): If the Chromium build requires __ANDROID_API__ >= 26 at some
     // point in the future, we could directly use the global functions instead of
     // dynamic loading. However, since this would be incompatible with pre-Oreo
     // devices, this is unlikely to happen in the foreseeable future, so just
     // unconditionally use dynamic loading.
 
-    // cf. base/android/linker/modern_linker_jni.cc
-    void *main_dl_handle = dlopen(nullptr, RTLD_NOW);
+    // Load the owning library explicitly; it need not be globally loaded by
+    // the frontend. Keep it alive for as long as these function pointers live.
+    library_ = dlopen("libandroid.so", RTLD_NOW | RTLD_LOCAL);
+    if (library_ == nullptr)
+        return;
 
     *reinterpret_cast<void **>(&allocate_) =
-            dlsym(main_dl_handle, "AHardwareBuffer_allocate");
+            dlsym(library_, "AHardwareBuffer_allocate");
     DCHECK(allocate_);
 
     *reinterpret_cast<void **>(&acquire_) =
-            dlsym(main_dl_handle, "AHardwareBuffer_acquire");
+            dlsym(library_, "AHardwareBuffer_acquire");
     DCHECK(acquire_);
 
     *reinterpret_cast<void **>(&describe_) =
-            dlsym(main_dl_handle, "AHardwareBuffer_describe");
+            dlsym(library_, "AHardwareBuffer_describe");
     DCHECK(describe_);
 
     *reinterpret_cast<void **>(&lock_) =
-            dlsym(main_dl_handle, "AHardwareBuffer_lock");
+            dlsym(library_, "AHardwareBuffer_lock");
     DCHECK(lock_);
 
     *reinterpret_cast<void **>(&recv_handle_) =
-            dlsym(main_dl_handle, "AHardwareBuffer_recvHandleFromUnixSocket");
+            dlsym(library_, "AHardwareBuffer_recvHandleFromUnixSocket");
     DCHECK(recv_handle_);
 
     *reinterpret_cast<void **>(&release_) =
-            dlsym(main_dl_handle, "AHardwareBuffer_release");
+            dlsym(library_, "AHardwareBuffer_release");
     DCHECK(release_);
 
     *reinterpret_cast<void **>(&send_handle_) =
-            dlsym(main_dl_handle, "AHardwareBuffer_sendHandleToUnixSocket");
+            dlsym(library_, "AHardwareBuffer_sendHandleToUnixSocket");
     DCHECK(send_handle_);
 
     *reinterpret_cast<void **>(&unlock_) =
-            dlsym(main_dl_handle, "AHardwareBuffer_unlock");
+            dlsym(library_, "AHardwareBuffer_unlock");
     DCHECK(unlock_);
 }
 
+AndroidHardwareBufferCompat::~AndroidHardwareBufferCompat() {
+    if (library_ != nullptr)
+        dlclose(library_);
+}
+
+int AndroidHardwareBufferCompat::GetApiLevel() {
+    // C++11 initializes this once, even if renderer threads race on first use.
+    static const int apiLevel = []() {
+        char value[PROP_VALUE_MAX] = {};
+        return __system_property_get("ro.build.version.sdk", value) > 0
+            ? std::atoi(value) : 0;
+    }();
+    return apiLevel;
+}
+
 bool AndroidHardwareBufferCompat::IsSupportAvailable() {
-
-    static bool apiLevelChecked = false;
-    static int apiLevel = 0;
-
-    if (!apiLevelChecked)
-    {
-        char *androidApiLevel = new char[PROP_VALUE_MAX];
-
-        int valid = __system_property_get("ro.build.version.sdk", androidApiLevel);
-
-        if (valid > 0) {
-            std::stringstream convert(androidApiLevel);
-            convert >> apiLevel;
-        }
-    }
-
-    return apiLevel >= 26;
+    if (GetApiLevel() < 26)
+        return false;
+    const auto& compat = GetInstance();
+    return compat.allocate_ && compat.acquire_ && compat.describe_ &&
+        compat.lock_ && compat.recv_handle_ && compat.release_ &&
+        compat.send_handle_ && compat.unlock_;
 }
 
 
