@@ -1,4 +1,5 @@
 # All core builds use release settings, including frontend debug builds.
+.DEFAULT_GOAL := all
 override DEBUG := 0
 FORCE_GLES ?= 0
 FORCE_GLES3 ?= 0
@@ -514,21 +515,42 @@ else ifneq (,$(findstring tvos,$(platform)))
 # Android
 else ifneq (,$(findstring android,$(platform)))
    ANDROID = 1
+   # Take the NEON geometry paths, not the relaxed float semantics that used
+   # to come with them -- see the HAVE_NEON block near the end of this file.
+   NEON_UNSAFE_MATH = 0
    LDFLAGS += -shared -Wl,--version-script=$(LIBRETRO_DIR)/link.T -Wl,--no-undefined -Wl,--warn-common -llog
    INCFLAGS += -I$(ROOT_DIR)/GLideN64/src/GLideNHQ/inc
-   ifneq (,$(findstring x86,$(platform)))
-      CC = i686-linux-android-gcc
-      CXX = i686-linux-android-g++
+   ANDROID_API ?= 21
+   ANDROID_NDK ?= $(or $(ANDROID_NDK_HOME),$(ANDROID_NDK_ROOT))
+   ifneq ($(ANDROID_NDK),)
+      ANDROID_TOOLCHAIN := $(firstword $(wildcard $(ANDROID_NDK)/toolchains/llvm/prebuilt/*))/bin/
+   endif
+   ifneq (,$(findstring x86_64,$(platform)))
+      ARCH = x86_64
+      ANDROID_TRIPLE = x86_64-linux-android
+      WITH_DYNAREC = x86_64
+      ASFLAGS = -f elf64 -d ELF_TYPE -DPIC
+   else ifneq (,$(findstring x86,$(platform)))
+      ARCH = x86
+      ANDROID_TRIPLE = i686-linux-android
       WITH_DYNAREC = x86
-      LDFLAGS += -L$(ROOT_DIR)/custom/android/x86
+      ASFLAGS = -f elf -d ELF_TYPE -DPIC
+   else ifneq (,$(or $(findstring arm64,$(platform)),$(findstring aarch64,$(platform))))
+      # Use the ABI baseline, including NEON, without device-specific tuning
+      # or optional CRC instructions.
+      ARCH = aarch64
+      ANDROID_TRIPLE = aarch64-linux-android
+      WITH_DYNAREC = aarch64
+      HAVE_NEON = 1
    else
-      CC = arm-linux-androideabi-gcc
-      CXX = arm-linux-androideabi-g++
+      ARCH = arm
+      ANDROID_TRIPLE = armv7a-linux-androideabi
       WITH_DYNAREC = arm
       HAVE_NEON = 1
-      CPUFLAGS += -march=armv7-a -mfloat-abi=softfp -mfpu=neon
-      LDFLAGS += -march=armv7-a -L$(ROOT_DIR)/custom/android/arm
+      CPUFLAGS += -march=armv7-a -marm -mfloat-abi=softfp -mfpu=neon
    endif
+   CC = $(ANDROID_TOOLCHAIN)$(ANDROID_TRIPLE)$(ANDROID_API)-clang
+   CXX = $(ANDROID_TOOLCHAIN)$(ANDROID_TRIPLE)$(ANDROID_API)-clang++
    ifneq (,$(findstring gles3,$(platform)))
       GL_LIB := -lGLESv3
       GLES3 = 1
@@ -539,7 +561,6 @@ else ifneq (,$(findstring android,$(platform)))
       TARGET := $(TARGET_NAME)_gles2_libretro_android.so
    endif
    COREFLAGS += -DOS_LINUX
-   ASFLAGS = -f elf -d ELF_TYPE
 # emscripten
 else ifeq ($(platform), emscripten)
    TARGET := $(TARGET_NAME)_libretro_emscripten.bc
@@ -643,16 +664,25 @@ ifeq ($(ANDROID),)
    endif
 endif
 ifeq ($(ANDROID),1)
+   NEON_UNSAFE_MATH = 0
    COREFLAGS += -DOS_ANDROID
    CPUFLAGS += -DANDROID -DEGL_EGLEXT_PROTOTYPES
    LDFLAGS += -llog -ldl
+   LDFLAGS += -Wl,-z,max-page-size=16384
 endif
 
 include Makefile.common
 
 ifeq ($(HAVE_NEON), 1)
-   COREFLAGS += -DHAVE_NEON -D__ARM_NEON__ -D__NEON_OPT -ftree-vectorize -funsafe-math-optimizations -fno-finite-math-only -DUSE_SSE2NEON
-   ifeq (,$(filter $(platform),ios-arm64 tvos-arm64))
+   COREFLAGS += -ftree-vectorize
+   # Preserve existing non-Android tuning. Android keeps strict floating-point
+   # semantics because these flags also reach the emulated R4300 FPU.
+   ifneq ($(NEON_UNSAFE_MATH),0)
+      COREFLAGS += -funsafe-math-optimizations -fno-finite-math-only
+   endif
+   # These legacy vectorizer options are GCC-only.
+   CC_IS_CLANG := $(shell $(CC) --version 2>/dev/null | head -n1 | grep -ci clang)
+   ifeq ($(CC_IS_CLANG),0)
       COREFLAGS += -mvectorize-with-neon-quad -ftree-vectorizer-verbose=2
    endif
 endif
@@ -663,7 +693,10 @@ endif
 
 COREFLAGS += -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -D__LIBRETRO__ -DUSE_FILE32API -DM64P_PLUGIN_API -DM64P_CORE_PROTOTYPES -D_ENDUSER_RELEASE -DSINC_LOWER_QUALITY -DTXFILTER_LIB -D__VEC4_OPT -DMUPENPLUSAPI
 
-CPUOPTS += -DNDEBUG -fsigned-char -ffast-math -fno-strict-aliasing -fomit-frame-pointer -fvisibility=hidden
+CPUOPTS += -DNDEBUG -fsigned-char -fno-strict-aliasing -fomit-frame-pointer -fvisibility=hidden
+ifneq ($(ANDROID),1)
+   CPUOPTS += -ffast-math
+endif
 ifneq ($(platform), libnx)
    CPUOPTS := -O3 $(CPUOPTS)
 endif
@@ -690,6 +723,13 @@ OBJECTS     += $(SOURCES_CXX:.cpp=.o) $(SOURCES_C:.c=.o) $(SOURCES_ASM:.S=.o) $(
 CXXFLAGS    += $(CPUOPTS) $(COREFLAGS) $(INCFLAGS) $(PLATCFLAGS) $(fpic) $(CPUFLAGS) $(GLFLAGS) $(DYNAFLAGS)
 CFLAGS      += $(CPUOPTS) $(COREFLAGS) $(INCFLAGS) $(PLATCFLAGS) $(fpic) $(CPUFLAGS) $(GLFLAGS) $(DYNAFLAGS)
 
+# The emulated FPU observes NaNs, signed zero and rounding. Keep SIMD enabled,
+# but override relaxed float flags from CPU presets and frontend builds.
+ifeq ($(ANDROID),1)
+   CFLAGS += -fno-fast-math -ffp-contract=off
+   CXXFLAGS += -fno-fast-math -ffp-contract=off
+endif
+
 ifneq ($(ANDROID),1)
    LDFLAGS    += -lpthread
 endif
@@ -698,6 +738,9 @@ ifeq ($(platform), ios-arm64)
 	LDFLAGS    += $(fpic) -O3 $(CPUOPTS) $(PLATCFLAGS) $(CPUFLAGS)
 else
 	LDFLAGS    += $(fpic) -O3 $(CPUOPTS) $(PLATCFLAGS) $(CPUFLAGS)
+endif
+ifeq ($(ANDROID),1)
+   LDFLAGS += -fno-fast-math
 endif
 
 -include $(OBJECTS:.o=.d)
@@ -712,6 +755,7 @@ endif
 
 # Script hackery fll or generating ASM include files for the new dynarec assembly code
 $(AWK_DEST_DIR)/asm_defines_gas.h: $(AWK_DEST_DIR)/asm_defines_nasm.h
+	@test -f "$@" || sed 's/^%define /#define /' "$<" > "$@"
 $(AWK_DEST_DIR)/asm_defines_nasm.h: $(ASM_DEFINES_OBJ)
 	$(STRINGS) "$<" | $(TR) -d '\r' | $(AWK) -v dest_dir="$(AWK_DEST_DIR)" -f $(CORE_DIR)/tools/gen_asm_defines.awk
 
@@ -719,16 +763,16 @@ $(AWK_DEST_DIR)/asm_defines_nasm.h: $(ASM_DEFINES_OBJ)
 	$(NASM) -i$(AWK_DEST_DIR)/ $(ASFLAGS) $< -o $@
 
 %.o: %.S $(AWK_DEST_DIR)/asm_defines_gas.h
-	$(CC_AS) $(CFLAGS) -c $< -o $@
+	$(CC_AS) $(CFLAGS) -MMD -MP -c $< -o $@
 
 %.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
 $(RSPDIR_PARALLEL)/lightning/lib/lightning.o: $(RSPDIR_PARALLEL)/lightning/lib/lightning.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DHAVE_MMAP=1 -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -DHAVE_MMAP=1 -c $< -o $@
 
 %.o: %.cpp
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
 # Platform defines affect every translation unit, even when its source is unchanged.
 $(OBJECTS): Makefile Makefile.common

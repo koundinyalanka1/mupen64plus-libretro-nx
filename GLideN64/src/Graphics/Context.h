@@ -88,7 +88,7 @@ namespace graphics {
 		 * depth and stencil contents are not needed, so the tiles holding them
 		 * need neither be loaded at the start of the pass nor resolved to memory
 		 * at the end. A no-op where glInvalidateFramebuffer is unavailable. */
-		void invalidateDepthStencil(ObjectHandle _drawBuffer);
+		void invalidateDepthStencil();
 
 		void setPolygonOffset(f32 _factor, f32 _units);
 

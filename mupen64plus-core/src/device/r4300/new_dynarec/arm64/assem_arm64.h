@@ -1,10 +1,11 @@
 #ifndef M64P_DEVICE_R4300_NEW_DYNAREC_ARM_ASSEM_ARM64_H
 #define M64P_DEVICE_R4300_NEW_DYNAREC_ARM_ASSEM_ARM64_H
 
-#define HOST_REGS 29
+#define HOST_REGS 28
 #define HOST_CCREG 20 /* callee-save */
 #define HOST_BTREG 19 /* callee-save */
-#define EXCLUDE_REG 29 /* FP */
+#define EXCLUDE_REG 18 /* platform register (reserved by Android and Apple) */
+#define HOST_TRAMPREG 28 /* reserved for long-branch trampolines */
 
 //#define DISABLE_BLOCK_LINKING 1
 #define NATIVE_64 1
@@ -17,8 +18,9 @@
 #define USE_MINI_HT 1
 
 /* ARM calling convention:
-   x0-x18: caller-save
-   x19-x28: callee-save */
+   x0-x17: caller-save
+   x18: reserved platform register
+   x19-x28: callee-save (x28 reserved for trampolines) */
 
 #define ARG1_REG 0
 #define ARG2_REG 1
@@ -36,7 +38,7 @@
 #define LR 30
 #define WZR 31
 #define XZR WZR
-#define CALLER_SAVED_REGS 0x7ffff
+#define CALLER_SAVED_REGS 0x3ffff
 #define HOST_TEMPREG 30
 
 // Note: FP is set to &dynarec_local when executing generated code.

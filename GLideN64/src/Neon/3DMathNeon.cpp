@@ -4,6 +4,31 @@
 #include "Types.h"
 #include <arm_neon.h>
 
+/* Match scalar Normalize's zero-length guard before reciprocal refinement:
+ * rsqrt(0) is infinite, so refining it would evaluate 0 * Inf. Use a scale
+ * of one for those lanes, preserving even tiny vectors whose squared length
+ * underflows to zero. NaN lengths still propagate as in the scalar path.
+ */
+static inline float32x2_t normalizeScaleZeroSafe(float32x2_t sqLen)
+{
+    const uint32x2_t isZero = vceq_f32(sqLen, vdup_n_f32(0.0f));
+    sqLen = vbsl_f32(isZero, vdup_n_f32(1.0f), sqLen);
+    float32x2_t scale = vrsqrte_f32(sqLen);
+    scale = vmul_f32(scale, vrsqrts_f32(vmul_f32(scale, sqLen), scale));
+    scale = vmul_f32(scale, vrsqrts_f32(vmul_f32(scale, sqLen), scale));
+    return vbsl_f32(isZero, vdup_n_f32(1.0f), scale);
+}
+
+static inline float32x4_t normalizeScaleZeroSafeQ(float32x4_t sqLen)
+{
+    const uint32x4_t isZero = vceqq_f32(sqLen, vdupq_n_f32(0.0f));
+    sqLen = vbslq_f32(isZero, vdupq_n_f32(1.0f), sqLen);
+    float32x4_t scale = vrsqrteq_f32(sqLen);
+    scale = vmulq_f32(scale, vrsqrtsq_f32(vmulq_f32(scale, sqLen), scale));
+    scale = vmulq_f32(scale, vrsqrtsq_f32(vmulq_f32(scale, sqLen), scale));
+    return vbslq_f32(isZero, vdupq_n_f32(1.0f), scale);
+}
+
 void MultMatrix( float m0[4][4], float m1[4][4], float dest[4][4])
 {
     // Load m0
@@ -74,17 +99,7 @@ void TransformVectorNormalize(float vec[3], float mtx[4][4])
     temp = vpadd_f32(temp, temp);
     temp = vmla_f32(temp, product1, product1);       // temp[0] is important
 
-    float32x2_t recpSqrtEst;
-    float32x2_t recp;
-    float32x2_t prod;
-    
-    recpSqrtEst = vrsqrte_f32(temp);
-    prod =        vmul_f32(recpSqrtEst,temp);
-    recp =        vrsqrts_f32(prod,recpSqrtEst);
-    recpSqrtEst = vmul_f32(recpSqrtEst,recp);
-    prod =        vmul_f32(recpSqrtEst,temp);
-    recp =        vrsqrts_f32(prod,recpSqrtEst);
-    recpSqrtEst = vmul_f32(recpSqrtEst,recp);
+    const float32x2_t recpSqrtEst = normalizeScaleZeroSafe(temp);
 
     product = vmulq_n_f32(product, recpSqrtEst[0]);
 
@@ -114,17 +129,7 @@ void InverseTransformVectorNormalize(float src[3], float dst[3], float mtx[4][4]
     temp = vpadd_f32(temp, temp);
     temp = vmla_f32(temp, product1, product1);       // temp[0] is important
 
-    float32x2_t recpSqrtEst;
-    float32x2_t recp;
-    float32x2_t prod;
-    
-    recpSqrtEst = vrsqrte_f32(temp);
-    prod =        vmul_f32(recpSqrtEst,temp);
-    recp =        vrsqrts_f32(prod,recpSqrtEst);
-    recpSqrtEst = vmul_f32(recpSqrtEst,recp);
-    prod =        vmul_f32(recpSqrtEst,temp);
-    recp =        vrsqrts_f32(prod,recpSqrtEst);
-    recpSqrtEst = vmul_f32(recpSqrtEst,recp);
+    const float32x2_t recpSqrtEst = normalizeScaleZeroSafe(temp);
 
     product = vmulq_n_f32(product, recpSqrtEst[0]);
 
@@ -184,17 +189,7 @@ static void InverseTransformVectorNormalize4(float src[4][3], float dst[4][3], f
 
     float32x4_t temp = {temp0[0], temp1[0], temp2[0], temp3[0]};
 
-    float32x4_t recpSqrtEst;
-    float32x4_t recp;
-    float32x4_t prod;
-    
-    recpSqrtEst = vrsqrteq_f32(temp);
-    prod =        vmulq_f32(recpSqrtEst,temp);
-    recp =        vrsqrtsq_f32(prod,recpSqrtEst);
-    recpSqrtEst = vmulq_f32(recpSqrtEst,recp);
-    prod =        vmulq_f32(recpSqrtEst,temp);
-    recp =        vrsqrtsq_f32(prod,recpSqrtEst);
-    recpSqrtEst = vmulq_f32(recpSqrtEst,recp);
+    const float32x4_t recpSqrtEst = normalizeScaleZeroSafeQ(temp);
 
     product.val[0] = vmulq_n_f32(product.val[0], recpSqrtEst[0]);
     product.val[1] = vmulq_n_f32(product.val[1], recpSqrtEst[1]);
@@ -296,27 +291,8 @@ static void InverseTransformVectorNormalize7(float src[4][3], float dst[4][3], f
     float32x4_t temp0 = {temp00[0], temp01[0], temp02[0], temp03[0]};
     float32x4_t temp1 = {temp04[0], temp05[0], temp06[0], 0.0};
 
-    float32x4_t recpSqrtEst0;
-    float32x4_t recpSqrtEst1;
-    float32x4_t recp0;
-    float32x4_t recp1;
-    float32x4_t prod0;
-    float32x4_t prod1;
-    
-    recpSqrtEst0 = vrsqrteq_f32(temp0);
-    recpSqrtEst1 = vrsqrteq_f32(temp1);
-    prod0 =        vmulq_f32(recpSqrtEst0,temp0);
-    prod1 =        vmulq_f32(recpSqrtEst1,temp1);
-    recp0 =        vrsqrtsq_f32(prod0,recpSqrtEst0);
-    recp1 =        vrsqrtsq_f32(prod1,recpSqrtEst1);
-    recpSqrtEst0 = vmulq_f32(recpSqrtEst0,recp0);
-    recpSqrtEst1 = vmulq_f32(recpSqrtEst1,recp1);
-    prod0 =        vmulq_f32(recpSqrtEst0,temp0);
-    prod1 =        vmulq_f32(recpSqrtEst1,temp1);
-    recp0 =        vrsqrtsq_f32(prod0,recpSqrtEst0);
-    recp1 =        vrsqrtsq_f32(prod1,recpSqrtEst1);
-    recpSqrtEst0 = vmulq_f32(recpSqrtEst0,recp0);
-    recpSqrtEst1 = vmulq_f32(recpSqrtEst1,recp1);
+    const float32x4_t recpSqrtEst0 = normalizeScaleZeroSafeQ(temp0);
+    const float32x4_t recpSqrtEst1 = normalizeScaleZeroSafeQ(temp1);
 
     product0.val[0] = vmulq_n_f32(product0.val[0], recpSqrtEst0[0]);
     product0.val[1] = vmulq_n_f32(product0.val[1], recpSqrtEst0[1]);
@@ -365,17 +341,7 @@ void Normalize(float v[3])
     temp = vpadd_f32(temp, temp);
     temp = vmla_f32(temp, product1, product1);       // temp[0] is important
 
-    float32x2_t recpSqrtEst;
-    float32x2_t recp;
-    float32x2_t prod;
-    
-    recpSqrtEst = vrsqrte_f32(temp);
-    prod =        vmul_f32(recpSqrtEst,temp);
-    recp =        vrsqrts_f32(prod,recpSqrtEst);
-    recpSqrtEst = vmul_f32(recpSqrtEst,recp);
-    prod =        vmul_f32(recpSqrtEst,temp);
-    recp =        vrsqrts_f32(prod,recpSqrtEst);
-    recpSqrtEst = vmul_f32(recpSqrtEst,recp);
+    const float32x2_t recpSqrtEst = normalizeScaleZeroSafe(temp);
 
     product = vmulq_n_f32(product, recpSqrtEst[0]);
 

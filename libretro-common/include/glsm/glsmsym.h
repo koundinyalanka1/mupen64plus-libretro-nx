@@ -73,6 +73,7 @@ RETRO_BEGIN_DECLS
 #define glGenFramebuffers           rglGenFramebuffers
 #define glGenTextures               rglGenTextures
 #define glBindFramebuffer           rglBindFramebuffer
+#define glInvalidateFramebuffer     rglInvalidateFramebuffer
 #define glGenerateMipmap            rglGenerateMipmap
 #define glCheckFramebufferStatus    rglCheckFramebufferStatus
 #define glBindFragDataLocation      rglBindFragDataLocation
@@ -280,6 +281,8 @@ void rglGenRenderbuffers(GLsizei n, GLuint *renderbuffers);
 void rglGenFramebuffers(GLsizei n, GLuint *ids);
 void rglGenTextures(GLsizei n, GLuint *textures);
 void rglBindFramebuffer(GLenum target, GLuint framebuffer);
+void rglInvalidateFramebuffer(GLenum target, GLsizei numAttachments,
+      const GLenum *attachments);
 void rglGenerateMipmap(GLenum target);
 GLenum rglCheckFramebufferStatus(GLenum target);
 void rglBindFragDataLocation(GLuint program, GLuint colorNumber,

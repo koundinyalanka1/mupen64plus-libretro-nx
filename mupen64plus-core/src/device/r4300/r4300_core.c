@@ -154,9 +154,17 @@ void run_r4300(struct r4300_core* r4300)
         r4300->emumode = EMUMODE_DYNAREC;
         init_blocks(&r4300->cached_interp);
 #ifdef NEW_DYNAREC
-        new_dynarec_init();
-        new_dyna_start();
-        new_dynarec_cleanup();
+        if (new_dynarec_init())
+        {
+            new_dyna_start();
+            new_dynarec_cleanup();
+        }
+        else
+        {
+            DebugMessage(M64MSG_WARNING, "Dynarec unavailable; starting Pure Interpreter");
+            r4300->emumode = EMUMODE_PURE_INTERPRETER;
+            run_pure_interpreter(r4300);
+        }
 #else
         r4300->cached_interp.fin_block = dynarec_fin_block;
         r4300->cached_interp.not_compiled = dynarec_notcompiled;

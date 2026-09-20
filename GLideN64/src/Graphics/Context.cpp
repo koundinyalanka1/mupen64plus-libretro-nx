@@ -123,9 +123,9 @@ void Context::clearDepthBuffer()
 	m_impl->clearDepthBuffer();
 }
 
-void Context::invalidateDepthStencil(ObjectHandle _drawBuffer)
+void Context::invalidateDepthStencil()
 {
-	m_impl->invalidateDepthStencil(_drawBuffer);
+	m_impl->invalidateDepthStencil();
 }
 
 void Context::setPolygonOffset(f32 _factor, f32 _units)

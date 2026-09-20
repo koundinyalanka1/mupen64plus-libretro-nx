@@ -25,6 +25,7 @@
 #include <sys/types.h> // needed for u_int, u_char, etc
 #include <assert.h>
 #include <sys/types.h>
+#include <errno.h>
 
 #if defined(__APPLE__)
 #define MAP_ANONYMOUS MAP_ANON
@@ -48,6 +49,7 @@
 #if !defined(WIN32)
 #ifndef HAVE_LIBNX
 #include <sys/mman.h>
+#include <unistd.h>
 #else
 #include "../../../../../switch/mman.h"
 #endif // HAVE_LIBNX
@@ -2466,7 +2468,7 @@ static void ll_kill_pointers(struct ll_entry *head,intptr_t addr,int shift)
       inv_debug("EXP: Kill pointer at %x (%x)\n",(intptr_t)head->addr,head->vaddr);
       uintptr_t host_addr=(intptr_t)kill_pointer(head->addr);
       #if NEW_DYNAREC == NEW_DYNAREC_ARM
-        needs_clear_cache[(host_addr-(uintptr_t)base_addr)>>17]|=1<<(((host_addr-(uintptr_t)base_addr)>>12)&31);
+        needs_clear_cache[(host_addr-(uintptr_t)base_addr)>>17]|=1U<<(((host_addr-(uintptr_t)base_addr)>>12)&31);
       #else
         /* avoid unused variable warning */
         (void)host_addr;
@@ -2807,7 +2809,7 @@ static void invalidate_page(u_int page)
     inv_debug("INVALIDATE: kill pointer to %x (%x)\n",head->vaddr,(intptr_t)head->addr);
       uintptr_t host_addr=(intptr_t)kill_pointer(head->addr);
     #if NEW_DYNAREC == NEW_DYNAREC_ARM
-      needs_clear_cache[(host_addr-(uintptr_t)base_addr)>>17]|=1<<(((host_addr-(uintptr_t)base_addr)>>12)&31);
+      needs_clear_cache[(host_addr-(uintptr_t)base_addr)>>17]|=1U<<(((host_addr-(uintptr_t)base_addr)>>12)&31);
     #else
       /* avoid unused variable warning */
       (void)host_addr;
@@ -4740,14 +4742,6 @@ static void do_ccstub(int n)
       if((rs1[i]==rt1[i+1]||rs1[i]==rt2[i+1])&&(rs1[i]!=0)) {
         r=get_reg(branch_regs[i].regmap,RTEMP);
       }
-#if NEW_DYNAREC==NEW_DYNAREC_ARM64
-      if(r==18) {
-        // x18 is used for trampoline jumps, move it to another register (x0)
-        emit_mov(r,0);
-        r=0;
-        stubs[n][2]=jump_vaddr_reg[0];
-      }
-#endif
       emit_readword((intptr_t)&g_dev.r4300.new_dynarec_hot_state.pcaddr,r);
     }
   }else if(stubs[n][6]==NOTTAKEN) {
@@ -7256,13 +7250,6 @@ static void rjump_assemble(int i,struct regstat *i_regs)
   else
   #endif
   {
-#if NEW_DYNAREC==NEW_DYNAREC_ARM64
-  if(rs==18) {
-    // x18 is used for trampoline jumps, move it to another register (x0)
-    emit_mov(rs,0);
-    rs=0;
-  }
-#endif
     emit_jmp(jump_vaddr_reg[rs]);
   }
   #ifdef CORTEX_A8_BRANCH_PREDICTION_HACK
@@ -8617,13 +8604,6 @@ static void pagespan_ds(void)
   intptr_t branch=(intptr_t)out;
   emit_jeq(0);
   store_regs_bt(regs[0].regmap,regs[0].is32,regs[0].dirty,-1);
-#if NEW_DYNAREC==NEW_DYNAREC_ARM64
-  if(btaddr==18) {
-    // x18 is used for trampoline jumps, move it to another register (x0)
-    emit_mov(btaddr,0);
-    btaddr=0;
-  }
-#endif
   emit_jmp(jump_vaddr_reg[btaddr]);
   set_jump_target(branch,(intptr_t)out);
   store_regs_bt(regs[0].regmap,regs[0].is32,regs[0].dirty,start+4);
@@ -8634,13 +8614,31 @@ static void pagespan_ds(void)
 #ifdef HAVE_LIBNX
 ALIGN(4096, char jit_memory[33554432]) __attribute__((section(".text")));
 #endif
-void new_dynarec_init(void)
+#if !defined(WIN32) && !defined(HAVE_LIBNX) && !defined(RECOMP_DBG)
+static int protect_code_cache(void *addr, int protection)
+{
+  long page_size = sysconf(_SC_PAGESIZE);
+  if(page_size <= 0) {
+    DebugMessage(M64MSG_ERROR, "Unable to determine the host page size");
+    return -1;
+  }
+
+  /* extra_memory is only 4 KiB aligned. Cover its containing host pages
+   * without changing the structure offsets used by the assembly backends. */
+  uintptr_t start = (uintptr_t)addr;
+  uintptr_t aligned_start = start - start % (uintptr_t)page_size;
+  size_t length = (1U << TARGET_SIZE_2) + (start - aligned_start);
+  if(mprotect((void *)aligned_start, length, protection) != 0) {
+    DebugMessage(M64MSG_ERROR, "Unable to protect dynarec cache: %s", strerror(errno));
+    return -1;
+  }
+  return 0;
+}
+#endif
+
+int new_dynarec_init(void)
 {
   DebugMessage(M64MSG_INFO, "Init new dynarec");
-
-#if defined(RECOMPILER_DEBUG) && !defined(RECOMP_DBG)
-  recomp_dbg_init();
-#endif
 
 #if !defined(RECOMP_DBG)
 #if NEW_DYNAREC == NEW_DYNAREC_ARM64
@@ -8683,10 +8681,10 @@ void new_dynarec_init(void)
   close(fd);
 #endif // HAVE_LIBNX
 #elif CACHE_ADDR==FIXED_CACHE_ADDR
-  mprotect ((u_char *)g_dev.r4300.extra_memory, 1<<TARGET_SIZE_2,
-            PROT_READ | PROT_WRITE | PROT_EXEC);
   base_addr = g_dev.r4300.extra_memory;
   base_addr_rx = base_addr;
+  if(protect_code_cache(base_addr, PROT_READ | PROT_WRITE | PROT_EXEC) != 0)
+    return 0;
 #else /*DYNAMIC_CACHE_ADDR*/
   base_addr = mmap (NULL, 1<<TARGET_SIZE_2,
                     PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -8695,26 +8693,36 @@ void new_dynarec_init(void)
   base_addr_rx = base_addr;
 #endif
 #elif NEW_DYNAREC == NEW_DYNAREC_ARM
-  mprotect ((u_char *)g_dev.r4300.extra_memory, 1<<TARGET_SIZE_2,
-            PROT_READ | PROT_WRITE | PROT_EXEC);
   base_addr = g_dev.r4300.extra_memory;
   base_addr_rx = base_addr;
+  if(protect_code_cache(base_addr, PROT_READ | PROT_WRITE | PROT_EXEC) != 0)
+    return 0;
 #else
 #if defined(WIN32)
   DWORD dummy;
   BOOL res=VirtualProtect((void*)g_dev.r4300.extra_memory, 33554432, PAGE_EXECUTE_READWRITE, &dummy);
-  assert(res!=0);
+  if(!res) {
+    DebugMessage(M64MSG_ERROR, "Unable to protect dynarec cache");
+    return 0;
+  }
   base_addr = base_addr_rx = (void*)g_dev.r4300.extra_memory;
 #else
-  mprotect ((u_char *)g_dev.r4300.extra_memory, 1<<TARGET_SIZE_2,
-            PROT_READ | PROT_WRITE | PROT_EXEC);
   base_addr = g_dev.r4300.extra_memory;
   base_addr_rx = base_addr;
+  if(protect_code_cache(base_addr, PROT_READ | PROT_WRITE | PROT_EXEC) != 0)
+    return 0;
 #endif
 #endif
 #endif
 
-  if(base_addr==(void*)-1) DebugMessage(M64MSG_ERROR, "mmap() failed");
+  if(base_addr==(void*)-1 || base_addr_rx==(void*)-1) {
+    DebugMessage(M64MSG_ERROR, "Unable to map dynarec cache");
+    return 0;
+  }
+
+#if defined(RECOMPILER_DEBUG) && !defined(RECOMP_DBG)
+  recomp_dbg_init();
+#endif
 
   assert(((uintptr_t)g_dev.rdram.dram&7)==0); //8 bytes aligned
   out=(u_char *)base_addr;
@@ -8754,6 +8762,7 @@ void new_dynarec_init(void)
 
   tlb_speed_hacks();
   arch_init();
+  return 1;
 }
 
 void new_dynarec_cleanup(void)
@@ -8769,11 +8778,13 @@ void new_dynarec_cleanup(void)
   assert(copy_size==0);
 #if !defined(RECOMP_DBG)
   #if defined(WIN32)
-    VirtualFree(base_addr, 0, MEM_RELEASE);
+    DWORD dummy;
+    if(!VirtualProtect(base_addr, 1U<<TARGET_SIZE_2, PAGE_READWRITE, &dummy))
+      DebugMessage(M64MSG_ERROR, "Unable to restore dynarec cache protection");
   #elif NEW_DYNAREC == NEW_DYNAREC_ARM64 && CACHE_ADDR!=FIXED_CACHE_ADDR
     if (munmap (base_addr_rx, 1<<TARGET_SIZE_2) < 0) {DebugMessage(M64MSG_ERROR, "munmap() failed");}
   #else
-    mprotect(base_addr, 1<<TARGET_SIZE_2, PROT_READ | PROT_WRITE);
+    protect_code_cache(base_addr, PROT_READ | PROT_WRITE);
   #endif
 #endif
 #ifdef ROM_COPY
@@ -10423,9 +10434,11 @@ int new_recompile_block(int addr)
         }
       }
       // Don't need stuff which is overwritten
-      //FIXME
-      if(regs[i].regmap[hr]!=regmap_pre[i][hr]) nr&=~(1LL<<hr);
-      if(regs[i].regmap[hr]<0) nr&=~(1LL<<hr);
+      for(hr=0;hr<HOST_REGS;hr++)
+      {
+        if(regs[i].regmap[hr]!=regmap_pre[i][hr]) nr&=~(1LL<<hr);
+        if(regs[i].regmap[hr]<0) nr&=~(1LL<<hr);
+      }
       // Merge in delay slot
       for(hr=0;hr<HOST_REGS;hr++)
       {

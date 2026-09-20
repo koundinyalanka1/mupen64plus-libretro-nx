@@ -102,7 +102,7 @@ static const uintptr_t jump_vaddr_reg[32] = {
   (intptr_t)jump_vaddr_x15,
   (intptr_t)jump_vaddr_x16,
   (intptr_t)jump_vaddr_x17,
-  (intptr_t)breakpoint,     /*trampoline jumps uses x18*/
+  (intptr_t)breakpoint,     /* x18 is the reserved platform register */
   (intptr_t)jump_vaddr_x19,
   (intptr_t)breakpoint,     /*cycle count*/
   (intptr_t)jump_vaddr_x21,
@@ -950,7 +950,7 @@ static u_int genjmp(intptr_t addr)
   if(offset<-134217728LL||offset>=134217728LL)
   {
     int n;
-    for(n=0;n<sizeof(jump_table_symbols)/4;n++)
+    for(n=0;n<sizeof(jump_table_symbols)/sizeof(jump_table_symbols[0]);n++)
     {
       if(addr==jump_table_symbols[n])
       {
@@ -3003,7 +3003,7 @@ static void save_regs(u_int reglist)
   int index=0;
   int offset=0;
 
-  reglist&=CALLER_SAVED_REGS; // only save the caller-save registers, x0-x18
+  reglist&=CALLER_SAVED_REGS; // only save the caller-save registers, x0-x17
   if(!reglist) return;
 
   int i;
@@ -3036,7 +3036,7 @@ static void restore_regs(u_int reglist)
   int index=0;
   int offset=0;
 
-  reglist&=CALLER_SAVED_REGS; // only restore the caller-save registers, x0-x18
+  reglist&=CALLER_SAVED_REGS; // only restore the caller-save registers, x0-x17
   if(!reglist) return;
 
   int i;
@@ -4521,11 +4521,6 @@ static void do_miniht_jump(int rs,int rh,int ht) {
   emit_cmp(rh,rs);
   intptr_t jaddr=(intptr_t)out;
   emit_jeq(0);
-  if(rs==18) {
-    // x18 is used for trampoline jumps, move it to another register (x0)
-    emit_mov(rs,0);
-    rs=0;
-  }
   emit_jmp(jump_vaddr_reg[rs]);
   set_jump_target(jaddr,(intptr_t)out);
   assem_debug("ldr %s,[%s,#8]",regname64[ht],regname64[ht]);
@@ -4554,19 +4549,19 @@ static void do_clear_cache(void)
       uintptr_t start,end;
       for(j=0;j<32;j++)
       {
-        if(bitmap&(1<<j)) {
-          start=(intptr_t)base_addr_rx+i*131072+j*4096;
-          end=start+4095;
+        if(bitmap&(1U<<j)) {
+          start=(uintptr_t)base_addr_rx+i*131072+j*4096;
+          end=start+4096;
           j++;
           while(j<32) {
-            if(bitmap&(1<<j)) {
+            if(bitmap&(1U<<j)) {
               end+=4096;
               j++;
             }else{
-              cache_flush((char *)start,(char *)end);
               break;
             }
           }
+          cache_flush((char *)start,(char *)end);
         }
       }
       needs_clear_cache[i]=0;
@@ -4615,8 +4610,8 @@ static void arch_init(void) {
     if(offset>=-134217728LL&&offset<134217728LL) {
       *ptr4=0x14000000|((offset>>2)&0x3ffffff); // direct branch
     }else{
-      *ptr4=0x58000000|((8>>2)<<5)|18; // ldr x18,[pc,#8]
-      *(ptr4+1)=0xd61f0000|(18<<5);
+      *ptr4=0x58000000|((8>>2)<<5)|HOST_TRAMPREG; // ldr x28,[pc,#8]
+      *(ptr4+1)=0xd61f0000|(HOST_TRAMPREG<<5); // br x28
     }
     ptr2++;
     *ptr2=*ptr;

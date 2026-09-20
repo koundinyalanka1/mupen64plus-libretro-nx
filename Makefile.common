@@ -138,7 +138,7 @@ ZLIB_SOURCES_C = \
 	$(ZLIB_DIR)/uncompr.c \
 	$(ZLIB_DIR)/zutil.c
 
-AWK_DEST_DIR    := $(CORE_DIR)/src/asm_defines
+AWK_DEST_DIR    ?= $(CORE_DIR)/src/asm_defines
 ASM_DEFINES_OBJ := $(AWK_DEST_DIR)/asm_defines.o
 
 # MD5 lib
@@ -475,6 +475,7 @@ else
 endif
 
 ifeq ($(HAVE_NEON),1)
+	COREFLAGS += -DHAVE_NEON -D__NEON_OPT -DUSE_SSE2NEON
 	SOURCES_CXX   += $(VIDEODIR_GLIDEN64)/src/Neon/3DMathNeon.cpp \
 						  $(VIDEODIR_GLIDEN64)/src/Neon/gSPNeon.cpp
 

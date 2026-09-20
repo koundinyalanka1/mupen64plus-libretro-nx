@@ -238,27 +238,28 @@ void gSPLightVertex_NEON(u32 vnum, u32 v, SPVertex * spVtx)
 	if (!isHWLightingAllowed()) {
 		for(int j = 0; j < vnum; ++j) {
 			SPVertex & vtx = spVtx[v + j];
-			vtx.r = gSP.lights.rgb[gSP.numLights][R];
-			vtx.g = gSP.lights.rgb[gSP.numLights][G];
-			vtx.b = gSP.lights.rgb[gSP.numLights][B];
+			float (*colors)[3] = ((v + j) & 1) == 0 ? gSP.lights.rgb : gSP.lights.rgb2;
+			vtx.r = colors[gSP.numLights][R];
+			vtx.g = colors[gSP.numLights][G];
+			vtx.b = colors[gSP.numLights][B];
 			vtx.HWLight = 0;
 
 			s32 count = gSP.numLights-1;
 			while (count >= 6) {
-				DotProductMax7FullNeon(&vtx.nx,(float (*)[3])gSP.lights.i_xyz[gSP.numLights - count - 1],(float (*)[3])gSP.lights.rgb[gSP.numLights - count - 1],&vtx.r);
+				DotProductMax7FullNeon(&vtx.nx,(float (*)[3])gSP.lights.i_xyz[gSP.numLights - count - 1],colors + gSP.numLights - count - 1,&vtx.r);
 				count -= 7;
 			}
 			while (count >= 3) {
-				DotProductMax4FullNeon(&vtx.nx,(float (*)[3])gSP.lights.i_xyz[gSP.numLights - count - 1],(float (*)[3])gSP.lights.rgb[gSP.numLights - count - 1],&vtx.r);
+				DotProductMax4FullNeon(&vtx.nx,(float (*)[3])gSP.lights.i_xyz[gSP.numLights - count - 1],colors + gSP.numLights - count - 1,&vtx.r);
 				count -= 4;
 			}
 			while (count >= 0)
 			{
 				f32 intensity = DotProduct( &vtx.nx, gSP.lights.i_xyz[gSP.numLights - count - 1] );
 				if (intensity > 0.0f){
-					vtx.r += gSP.lights.rgb[gSP.numLights - count - 1][R] * intensity;
-					vtx.g += gSP.lights.rgb[gSP.numLights - count - 1][G] * intensity;
-					vtx.b += gSP.lights.rgb[gSP.numLights - count - 1][B] * intensity;
+					vtx.r += colors[gSP.numLights - count - 1][R] * intensity;
+					vtx.g += colors[gSP.numLights - count - 1][G] * intensity;
+					vtx.b += colors[gSP.numLights - count - 1][B] * intensity;
 				}
 				count -= 1;
 			}

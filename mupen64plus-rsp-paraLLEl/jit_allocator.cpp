@@ -27,21 +27,32 @@ Allocator::~Allocator()
 {
 #ifdef _WIN32
 	for (auto &block : blocks)
-		VirtualFree(block.code, 0, MEM_RELEASE);
+		if (block.code)
+			VirtualFree(block.code, 0, MEM_RELEASE);
 #else
 	for (auto &block : blocks)
-		munmap(block.code, block.size);
+		if (block.code)
+			munmap(block.code, block.size);
 #endif
 }
 
 static size_t align_page(size_t offset)
 {
-#if defined(__APPLE__) && defined(__aarch64__)
-	size_t pagesize = sysconf(_SC_PAGESIZE) - 1;
+#ifdef _WIN32
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	const size_t page_size = info.dwPageSize;
 #else
-	size_t pagesize = 4095;
+	const long system_page_size = sysconf(_SC_PAGESIZE);
+	if (system_page_size <= 0)
+		return 0;
+	const size_t page_size = static_cast<size_t>(system_page_size);
 #endif
-	return (offset + pagesize) & ~size_t(pagesize);
+	const size_t page_mask = page_size - 1;
+	if (!page_size || (page_size & page_mask) ||
+	    offset > std::numeric_limits<size_t>::max() - page_mask)
+		return 0;
+	return (offset + page_mask) & ~page_mask;
 }
 
 static bool commit_read_write(void *ptr, size_t size)
@@ -57,7 +68,7 @@ static bool commit_execute(void *ptr, size_t size)
 {
 #ifdef _WIN32
 	DWORD old_protect;
-	return VirtualProtect(ptr, align_page(size), PAGE_EXECUTE, &old_protect) != 0;
+	return VirtualProtect(ptr, size, PAGE_EXECUTE, &old_protect) != 0;
 #else
 	return mprotect(ptr, size, PROT_EXEC) == 0;
 #endif
@@ -65,12 +76,15 @@ static bool commit_execute(void *ptr, size_t size)
 
 bool Allocator::commit_code(void *code, size_t size)
 {
-	return commit_execute(code, size);
+	size = align_page(size);
+	return code && size && commit_execute(code, size);
 }
 
 void *Allocator::allocate_code(size_t size)
 {
 	size = align_page(size);
+	if (!size)
+		return nullptr;
 	if (blocks.empty())
 		blocks.push_back(reserve_block(std::max(size, block_size)));
 
@@ -78,8 +92,7 @@ void *Allocator::allocate_code(size_t size)
 	if (!block->code)
 		return nullptr;
 
-	block->offset = align_page(block->offset);
-	if (block->offset + size > block->size)
+	if (size > block->size - block->offset)
 		block = nullptr;
 
 	if (!block)
@@ -94,10 +107,10 @@ void *Allocator::allocate_code(size_t size)
 		return nullptr;
 
 	void *ret = block->code + block->offset;
-	block->offset += size;
 
 	if (!commit_read_write(ret, size))
 		return nullptr;
+	block->offset += size;
 	return ret;
 }
 
@@ -111,6 +124,8 @@ Allocator::Block Allocator::reserve_block(size_t size)
 #else
 	block.code = static_cast<uint8_t *>(mmap(nullptr, size, PROT_NONE, MAP_ANONYMOUS | MAP_PRIVATE,
 	                                         -1, 0));
+	if (block.code == MAP_FAILED)
+		block.code = nullptr;
 	block.size = size;
 	return block;
 #endif

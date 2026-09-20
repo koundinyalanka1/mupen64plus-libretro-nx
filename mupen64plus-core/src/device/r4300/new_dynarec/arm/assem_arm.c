@@ -937,7 +937,7 @@ static u_int genjmp(u_int addr)
   int offset=addr-(int)out-8;
   if(offset<-33554432||offset>=33554432) {
     int n;
-    for (n=0;n<sizeof(jump_table_symbols)/4;n++)
+    for (n=0;n<sizeof(jump_table_symbols)/sizeof(jump_table_symbols[0]);n++)
     {
       if(addr==jump_table_symbols[n])
       {
@@ -3945,22 +3945,22 @@ static void do_clear_cache(void)
   {
     u_int bitmap=needs_clear_cache[i];
     if(bitmap) {
-      u_int start,end;
+      uintptr_t start,end;
       for(j=0;j<32;j++)
       {
-        if(bitmap&(1<<j)) {
-          start=(int)base_addr+i*131072+j*4096;
-          end=start+4095;
+        if(bitmap&(1U<<j)) {
+          start=(uintptr_t)base_addr+i*131072+j*4096;
+          end=start+4096;
           j++;
           while(j<32) {
-            if(bitmap&(1<<j)) {
+            if(bitmap&(1U<<j)) {
               end+=4096;
               j++;
             }else{
-              cache_flush((void *)start,(void *)end);
               break;
             }
           }
+          cache_flush((void *)start,(void *)end);
         }
       }
       needs_clear_cache[i]=0;

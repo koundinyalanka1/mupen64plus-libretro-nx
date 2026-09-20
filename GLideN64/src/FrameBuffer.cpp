@@ -1442,7 +1442,7 @@ void FrameBufferList::OverscanBuffer::activate()
 	 * tiles at the start of the pass and resolving them to memory at the end.
 	 * Skipped when the composition is asked to write depth itself. */
 	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer == 0)
-		gfxContext.invalidateDepthStencil(target);
+		gfxContext.invalidateDepthStencil();
 }
 
 void FrameBufferList::OverscanBuffer::draw(u32 _fullHeight, bool _PAL)
@@ -1456,7 +1456,7 @@ void FrameBufferList::OverscanBuffer::draw(u32 _fullHeight, bool _PAL)
 	gfxContext.bindFramebuffer(bufferTarget::DRAW_FRAMEBUFFER, ObjectHandle::defaultFramebuffer);
 	/* Same reasoning as in activate(): this pass only writes colour. */
 	if (config.frameBufferEmulation.copyDepthToMainDepthBuffer == 0)
-		gfxContext.invalidateDepthStencil(ObjectHandle::defaultFramebuffer);
+		gfxContext.invalidateDepthStencil();
 #if defined(OS_WINDOWS)
 	gfxContext.clearDepthBuffer();
 #endif

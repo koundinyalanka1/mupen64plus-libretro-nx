@@ -53,6 +53,9 @@ PFNGLCOPYIMAGESUBDATAPROC m_glCopyImageSubData;
 
 #define MAX_FRAMEBUFFERS 128000
 #define MAX_UNIFORMS 1024
+/* Upper bound on the attachment list glInvalidateFramebuffer accepts;
+ * ES 3.0 allows colour attachments plus depth and stencil. */
+#define GLSM_MAX_INVALIDATE_ATTACHMENTS 16
 
 #if 0
 extern retro_log_printf_t log_cb;
@@ -2306,6 +2309,100 @@ void rglBindFramebuffer(GLenum target, GLuint framebuffer)
    else if (target == GL_READ_FRAMEBUFFER) {
          gl_state.framebuf[1].desired_location = framebuffer;
    }
+#endif
+}
+
+/*
+ * Category: FBO
+ *
+ * Core in:
+ * OpenGL    : 4.3
+ * OpenGLES  : 3.0
+ */
+void rglInvalidateFramebuffer(GLenum target, GLsizei numAttachments,
+      const GLenum *attachments)
+{
+#ifdef GLSM_DEBUG
+   log_cb(RETRO_LOG_INFO, "glInvalidateFramebuffer.\n");
+#endif
+#ifndef HAVE_OPENGLES2
+   /* A DEPTH_STENCIL attachment can expand into two names, hence the x2. */
+   GLenum remapped[GLSM_MAX_INVALIDATE_ATTACHMENTS * 2];
+   GLsizei count = 0;
+   GLsizei i;
+   GLuint  bound;
+
+   if (numAttachments <= 0 || attachments == NULL)
+      return;
+   if (numAttachments > GLSM_MAX_INVALIDATE_ATTACHMENTS)
+      return;
+#ifndef HAVE_OPENGLES
+   /* Desktop GL resolves this through rglgen; it stays NULL below GL 4.3. */
+   if (!glInvalidateFramebuffer)
+      return;
+#endif
+
+   /* Flush the deferred bind first: until it happens the driver still has
+    * the previously bound framebuffer, and the discard would be aimed at
+    * the wrong target. */
+   bindFBO(target);
+
+   bound = (target == GL_READ_FRAMEBUFFER)
+      ? gl_state.framebuf[1].location
+      : gl_state.framebuf[0].location;
+
+   /* The window-system framebuffer names its buffers COLOR/DEPTH/STENCIL,
+    * a framebuffer object names them *_ATTACHMENT, and passing the wrong
+    * family is GL_INVALID_ENUM. Callers cannot make that choice
+    * themselves: under libretro framebuffer 0 is redirected to the
+    * frontend's own FBO, so only the name really bound decides it. */
+   for (i = 0; i < numAttachments; i++)
+   {
+      GLenum attachment = attachments[i];
+
+      if (bound == 0)
+      {
+         switch (attachment)
+         {
+            case GL_COLOR_ATTACHMENT0:
+               attachment = GL_COLOR;
+               break;
+            case GL_DEPTH_ATTACHMENT:
+               attachment = GL_DEPTH;
+               break;
+            case GL_STENCIL_ATTACHMENT:
+               attachment = GL_STENCIL;
+               break;
+            case GL_DEPTH_STENCIL_ATTACHMENT:
+               remapped[count++] = GL_DEPTH;
+               attachment        = GL_STENCIL;
+               break;
+            default:
+               break;
+         }
+      }
+      else
+      {
+         switch (attachment)
+         {
+            case GL_COLOR:
+               attachment = GL_COLOR_ATTACHMENT0;
+               break;
+            case GL_DEPTH:
+               attachment = GL_DEPTH_ATTACHMENT;
+               break;
+            case GL_STENCIL:
+               attachment = GL_STENCIL_ATTACHMENT;
+               break;
+            default:
+               break;
+         }
+      }
+
+      remapped[count++] = attachment;
+   }
+
+   glInvalidateFramebuffer(target, count, remapped);
 #endif
 }
 
